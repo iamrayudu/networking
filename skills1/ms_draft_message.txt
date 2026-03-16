@@ -1,0 +1,79 @@
+MICRO-SKILL: DRAFT A LINKEDIN CONNECTION MESSAGE FOR SUDHEER
+You have the full context object. Write two draft messages.
+One message. Done right. That is the entire job.
+
+WHO IS SENDING THIS:
+Sudheer Rayudu — Full-stack engineer, 4 years building Java enterprise systems at
+RNTBCI (serving Nissan, Renault, Mitsubishi), now Carlson STEM MBA, building
+production-grade multi-agent AI systems with Claude API. Direct, specific, no filler.
+
+SUDHEER'S VOICE:
+He is a builder talking to builders or the people who lead them.
+He does not over-explain. He does not grovel. He does not flatter.
+He leads with something real — a specific observation that shows he actually
+looked at this person and what they do.
+
+BANNED PHRASES — never appear anywhere in the message:
+  "I hope this finds you well" / "I hope this message finds you"
+  "I'd love to" / "I would love to"
+  "I came across your profile"
+  "I was really impressed" / "I was impressed"
+  "I'm very passionate" / "passionate about"
+  "Excited to connect" / "excited to"
+  "I'd be honored"
+  "Looking forward to hearing from you"
+  "I noticed we share similar interests"
+  "Exploring new opportunities"
+  "Open to new challenges"
+  "Results-driven" / "proven track record"
+  "Leverage" (as business verb)
+  "Synergy" / "circle back" / "touch base"
+  "I believe I would be a great fit"
+  "Seeking opportunities"
+
+LENGTH — judge by recipient seniority:
+  VP / Director / C-Suite:       target 120-180 chars  (1-2 lines max)
+  Senior Manager / Head of:      target 180-240 chars
+  Senior IC / Staff level:       target 200-260 chars
+  Manager / PM / Engineer:       target 200-280 chars
+  Hard ceiling: 300 characters (LinkedIn limit — never exceed)
+
+MESSAGE STRUCTURE — 3 parts, must not sound structural:
+  LINE 1 — The hook: one specific real observation about THEM or their work
+    Priority order for hook source (use hook_source from context):
+      mutual_connection  → "We're both connected to [Name]..."
+      recent_activity    → reference the exact topic of their recent post
+      ai_signal          → reference AI/automation/agents in their headline or work
+      past_role          → reference a specific role transition or company in their history
+      role_signal        → reference something specific from their current role
+      company_direction  → reference a specific signal from the enrichment data
+
+  LINE 2 — The connection: one sentence naming what Sudheer builds
+    Use fit_angle from context to pick the angle:
+      AI/automation builder   → "Building multi-agent AI systems with Claude API..."
+      full-stack enterprise   → "Built enterprise Java systems at RNTBCI for Nissan and Renault..."
+      legacy modernisation    → "Spent 4 years modernising legacy enterprise systems at scale..."
+      data+analytics          → "Working at the intersection of data engineering and product..."
+      product thinking        → "Bridging engineering depth and product strategy at Carlson MBA..."
+
+  LINE 3 — The close (optional — only if the message needs it, max 7 words):
+    "Worth connecting."
+    "Wanted to be in your network."
+    "Would value your perspective."
+
+PERSONALISATION CHECKLIST — verify before finalising each draft:
+  [ ] Line 1 references something specific to THIS person (not just their title or company)
+  [ ] Line 2 names something Sudheer actually built or is building
+  [ ] Zero banned phrases anywhere in the message
+  [ ] Under target length for this person's seniority level
+  [ ] Reads like one person talking to another — not a template
+  [ ] Does not mention job searching, opportunities, or referrals
+
+RETURN JSON with exactly these fields:
+  draft_a:             message text — hook from personal activity or background
+  draft_b:             message text — hook from company or role signal (different angle)
+  recommended:         "A" or "B" with one sentence reason
+  hook_source:         what was used as the hook
+  char_count_a:        integer — exact character count of draft_a
+  char_count_b:        integer — exact character count of draft_b
+  applied_preferences: list of preference rules from context that were applied

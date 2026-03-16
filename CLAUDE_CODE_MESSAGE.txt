@@ -1,0 +1,471 @@
+The base build is complete. Now I need you to apply 6 upgrade directives to the existing codebase.
+These directives fix 6 specific problems with how agents handle context, voice, Chrome actions, output quality, and failures.
+
+Read ALL of this before touching any file.
+
+---
+
+WHAT EXISTS ALREADY — DO NOT REBUILD
+The full JobFlow OS V2 is already built:
+  backend/         FastAPI + WebSocket + all agents + memory layers
+  frontend/        React + Vite + Tailwind UI
+  config.yaml      settings file
+  data/            SQLite DB + ChromaDB + input folder
+  profile/         profile files location
+
+---
+
+WHAT YOU ARE ADDING
+6 directive files, applied in strict order.
+Each one is surgical — it adds or modifies specific files only.
+Never rebuild what already works.
+
+---
+
+DIRECTIVE ORDER AND WHAT EACH DOES
+
+DIRECTIVE 01 — DIRECTIVE_01_context_object.txt
+  Solves: context rebuilt from scratch at every tool call
+  Creates: backend/memory/context_object.py
+           backend/memory/observation_categories.py
+  Modifies: backend/memory/database.py (new table)
+            backend/agents/linkedin_agent.py
+            backend/agents/message_agent.py
+            backend/memory/context_builder.py (deprecation comment)
+            backend/agents/enrichment_agent.py
+            backend/agents/story_agent.py
+
+DIRECTIVE 02 — DIRECTIVE_02_micro_skills.txt
+  Solves: no specific instruction per tool boundary — agents improvise
+  Creates: backend/skills/ folder with 8 micro-skill .txt files
+           backend/skills/skill_loader.py
+  Modifies: backend/agents/linkedin_agent.py
+            backend/agents/enrichment_agent.py
+            backend/agents/story_agent.py
+            backend/agents/message_agent.py
+            backend/memory/decision_log.py
+
+DIRECTIVE 03 — DIRECTIVE_03_profile_drift.txt
+  Solves: Sudheer's voice fades by step 4 — messages go generic
+  Creates: backend/memory/voice_anchor.py
+  Modifies: backend/skills/skill_loader.py (one new function)
+            backend/agents/message_agent.py
+            backend/agents/story_agent.py
+            backend/agents/linkedin_agent.py
+
+DIRECTIVE 04 — DIRECTIVE_04_chrome_guards.txt
+  Solves: Chrome actions run without verifying page state first
+  Creates: backend/agents/chrome_guards.py
+  Modifies: backend/agents/linkedin_agent.py
+            backend/agents/contact_agent.py
+            backend/workers/agent_pool.py
+            backend/main.py
+
+DIRECTIVE 05 — DIRECTIVE_05_output_standards.txt
+  Solves: incomplete handoffs between steps — missing fields cause crashes
+  Creates: backend/memory/output_schemas.py
+  Modifies: backend/agents/linkedin_agent.py
+            backend/agents/message_agent.py
+            backend/agents/enrichment_agent.py
+            backend/agents/story_agent.py
+
+DIRECTIVE 06 — DIRECTIVE_06_failure_skill.txt
+  Solves: no defined response when things go wrong — silent failures
+  Creates: backend/agents/failure_handler.py
+  Modifies: backend/core/claude_client.py
+            backend/agents/linkedin_agent.py
+            backend/agents/message_agent.py
+            backend/agents/enrichment_agent.py
+            backend/memory/database.py
+
+---
+
+HOW TO EXECUTE
+
+Apply one directive at a time.
+After each directive: run its tests.
+Only move to the next directive when all tests pass.
+If a test fails: fix it before proceeding.
+
+Do not combine directives. Do not skip tests.
+
+---
+
+SKILL FILES CONTENT
+
+The 8 micro-skill files to create in backend/skills/ are defined in DIRECTIVE_02.
+Here is their content — create each as a plain .txt file exactly as written:
+
+========================
+backend/skills/ms_search_query.txt
+========================
+MICRO-SKILL: BUILD LINKEDIN SEARCH QUERY
+You are building a LinkedIn people search query for one company and role.
+Your output is used directly as a search URL parameter. Be precise.
+
+RULES:
+- Use the company's exact LinkedIn name — not a shortened version
+- Filter: 2nd degree connections first. If zero results: widen to 3rd.
+- People filter only — no jobs, no companies, no posts
+- Do not include seniority filter in the URL — LinkedIn's seniority filter is unreliable
+- Target titles to search for (in priority order):
+    Engineering Manager, Director of Engineering, VP Engineering,
+    Head of Product, Director of Product, Senior PM, Principal PM,
+    Staff Engineer, Senior Engineer, Data Engineering, ML Engineer,
+    Platform Engineer, Automation Engineer
+- Build 2 query variants: one broad (company name only), one targeted (company + role keyword)
+- Return JSON: {"query_broad": "...", "query_targeted": "...", "company_linkedin_name": "..."}
+
+WHAT NOT TO DO:
+- Do not search for Recruiter, Talent, HR, People Partner, Sourcer — ever
+- Do not use the job title from the job description verbatim — it may not match LinkedIn titles
+- Do not add location filter unless the role is explicitly location-specific
+
+========================
+backend/skills/ms_profile_extract.txt
+========================
+MICRO-SKILL: EXTRACT DATA FROM A LINKEDIN PROFILE PAGE
+You have just loaded a LinkedIn profile page via Selenium.
+Your job: extract exactly these fields and nothing else.
+Do not summarise. Do not interpret. Extract what is there.
+
+FIELDS TO EXTRACT (use null if not found — never guess):
+  name:               full name from the page header
+  title:              current job title — exact text, no paraphrasing
+  company:            current company name — exact text
+  linkedin_url:       current browser URL
+  headline:           the short tagline under their name
+  summary:            first 400 characters of the About section — empty string if none
+  current_role_duration: time in current role — e.g. "2 yr 3 mo" — null if not shown
+  past_roles:         list of up to 3 previous job titles + companies
+  mutual_connections: integer — 0 if none
+  connection_degree:  "1st" / "2nd" / "3rd"
+  recent_activity:    topic of most recent post or comment — null if none visible
+  skills_visible:     list of up to 5 skills — empty list if hidden
+
+QUALITY RULES:
+- If page did not load: return null for all fields, set {"load_failed": true, "reason": "..."}
+- If profile is in another language: extract anyway, note the language
+- Never combine fields
+- current_role_duration must be string like "1 yr" or "6 mo" — not a date range
+
+========================
+backend/skills/ms_score_contact.txt
+========================
+MICRO-SKILL: SCORE A LINKEDIN PROFILE FOR SUDHEER
+You have a LinkedIn profile and Sudheer's full context.
+Score this person 1-10 for how worthwhile it is to reach out.
+
+SCORING RUBRIC:
+  9-10: Title is exactly right (EM, Director, VP, Senior PM) AND 2nd degree
+        AND recent activity AND technical/AI/product signal
+  7-8:  Good title match, 2nd or 3rd degree, some technical signal
+  5-6:  Adjacent title OR 3rd degree no mutuals OR thin profile
+  1-4:  Any of: Recruiter/HR/Talent in title, no relevance, 3rd degree no signal
+
+HARD RULES:
+- Never score a Recruiter above 4 regardless of anything
+- 2nd degree mediocre title beats 3rd degree perfect title
+- Recent activity is a strong positive signal
+
+RETURN JSON:
+  score:       integer 1-10
+  reason:      2 sentences max — WHY, name specific signals
+  fit_angle:   strongest fit: "AI/automation builder" / "full-stack enterprise" /
+               "data+analytics" / "certifications" / "product thinking"
+  hook_source: "mutual_connection" / "recent_activity" / "role_signal" /
+               "ai_signal" / "company_direction" / "past_role"
+  surface:     true if score >= 6, false if score < 6
+
+========================
+backend/skills/ms_draft_message.txt
+========================
+MICRO-SKILL: DRAFT A LINKEDIN CONNECTION MESSAGE FOR SUDHEER
+You have the full context object. Write two draft messages.
+One message. Done right. That is the entire job.
+
+VOICE — Sudheer is a builder. Direct. No filler. No corporate language.
+BANNED PHRASES — never use these:
+  "I hope this finds you well", "I'd love to", "I came across your profile",
+  "I was really impressed", "I'm very passionate", "excited to connect",
+  "I'd be honored", "looking forward to hearing from you",
+  "I noticed we share similar interests", "exploring new opportunities",
+  "open to new challenges", "results-driven", "proven track record",
+  "leverage" (as business verb), "synergy", "circle back", "touch base"
+
+LENGTH — judge by seniority:
+  VP / Director / C-Suite:    120-180 characters
+  Senior Manager / Head of:   180-240 characters
+  Senior IC / Staff:          200-260 characters
+  Manager / PM / Engineer:    200-280 characters
+  Hard ceiling: 300 characters (LinkedIn limit)
+
+STRUCTURE — 3 parts, must not sound structural:
+  LINE 1 — hook: one specific real observation about THEM
+    Use hook_source: mutual_connection / recent_activity / ai_signal / role_signal
+  LINE 2 — connection: one sentence naming what Sudheer builds
+    Use fit_angle: AI/automation builder / full-stack enterprise / data+analytics
+  LINE 3 — close (optional, max 7 words):
+    "Worth connecting." or "Wanted to be in your network."
+
+PERSONALIZATION CHECK before finalising:
+  [ ] Line 1 references something specific to THIS person (not just title)
+  [ ] Line 2 names something Sudheer actually builds
+  [ ] Zero banned phrases
+  [ ] Under target length for this person's seniority
+  [ ] Reads like one person to another — not a template
+
+RETURN JSON:
+  draft_a, draft_b, recommended, hook_source,
+  char_count_a, char_count_b, applied_preferences (list)
+
+========================
+backend/skills/ms_enrichment_search.txt
+========================
+MICRO-SKILL: BUILD ENRICHMENT SEARCH QUERIES
+Run exactly these 4 queries in order:
+  1. "{company} engineering team culture product 2024 2025"
+  2. "{company} {role_title} responsibilities skills requirements"
+  3. "{company} recent news funding roadmap AI automation"
+  4. "{company} linkedin employees team structure"
+
+For each:
+  - Fetch top 3 results only
+  - Extract only: team language, tech stack, product direction, company mission,
+    recent hires, culture signals
+  - Discard: boilerplate, cookie notices, navigation, ads
+  - Max 3000 chars per page after cleaning
+  - If a page returns no useful text: mark "empty" and skip — do not retry
+
+Return: raw combined cleaned text — do not synthesise yet.
+
+========================
+backend/skills/ms_enrichment_synthesise.txt
+========================
+MICRO-SKILL: SYNTHESISE ENRICHMENT DATA INTO STRUCTURED INTELLIGENCE
+You have raw web text from 4 searches. Extract only what is useful for Sudheer's outreach.
+Do not fabricate. If data is not in the raw text: use "not found".
+
+RETURN JSON — exact fields, no extras:
+  company_summary:      2-3 sentences. Trajectory and what they care about. No filler.
+  team_info:            Relevant team, size if found, who leads it. null if not found.
+  tech_stack:           list of technologies actually mentioned. [] if none.
+  role_signals:         list of skills/keywords from job description language. [] if none.
+  culture_signals:      list only if explicitly stated — do not infer. [] if none.
+  linkedin_company_url: full URL or "not found"
+  fit_indicators:       list of 3-5 specific connections between Sudheer's background
+                        and this role. Each must name a Sudheer skill AND a role signal.
+                        BAD: "Sudheer has relevant experience"
+                        GOOD: "Role requires automation tooling — Sudheer builds enterprise
+                               automation systems from scratch"
+  contact_targets:      list of 2-3 {title, function, reason}. Team leads first. Recruiters last.
+  enrichment_confidence: "HIGH" / "MEDIUM" / "LOW"
+
+========================
+backend/skills/ms_story_write.txt
+========================
+MICRO-SKILL: WRITE SUDHEER'S POSITIONING STORY FOR ONE ROLE
+Write a positioning framework — not a cover letter, not a summary.
+This is what every other agent reads to represent Sudheer for this role.
+
+CRISP OVER COMPREHENSIVE. SHORT OVER THOROUGH.
+
+WRITE EXACTLY THESE SECTIONS with these exact headers:
+
+HEADLINE:
+  One sentence. Max 15 words. Names what Sudheer IS.
+  References something specific from THIS role or company.
+  BAD: "Experienced developer looking for new opportunities"
+  GOOD: "Full-stack builder turning AI and automation into enterprise-grade product systems"
+
+KEY_STRENGTHS:
+  Exactly 5 bullets. Max 12 words each.
+  Format: [what Sudheer did] — [why it matters for this role]
+  Each must connect real experience to a signal from enrichment.
+
+TALKING_POINTS:
+  4-6 bullets. Story-form. Specific. Active voice.
+  No buzzwords. No "passionate about". No "excited to".
+
+GAP_FRAMING:
+  1-3 sentences on gaps. Honest. Confident. Not defensive.
+  If no gaps: "No significant gaps identified."
+
+OUTREACH_TONE:
+  2 sentences only. How to sound for this specific company.
+  Derived from culture_signals in enrichment.
+
+BANNED WORDS — never appear anywhere:
+  passionate, excited, leverage, synergy, impactful, journey, seasoned,
+  results-driven, dynamic, proven track record, looking to, hoping to
+
+========================
+backend/skills/ms_preference_infer.txt
+========================
+MICRO-SKILL: INFER WHY SUDHEER MADE THIS DECISION
+You have one approve/edit/skip decision and its full context.
+Infer WHY and extract a durable preference rule.
+
+Be specific. A vague inference is useless.
+BAD: "User preferred this contact"
+GOOD: "User approved because person is 2nd degree Engineering Manager —
+       matches pattern of targeting eng leads over product leads at technical companies"
+
+CONFIDENCE:
+  5: fits a pattern seen multiple times
+  4: strong signal, first or second time
+  3: moderate — could be situational
+  2: weak — hard to generalise
+  1: no clear signal — log but do not apply as rule
+
+RETURN JSON:
+  inferred_why:        1-2 sentences, specific
+  inferred_preference: one actionable rule
+  confidence:          integer 1-5
+  category:            CONTACT_TARGETING / MESSAGE_TONE /
+                       MESSAGE_STRUCTURE / RELEVANCE_THRESHOLD / COMPANY_CONTEXT
+
+---
+
+ADDITIONAL SKILL FILES (from DIRECTIVE_01)
+Create these 2 files in profile/ — they are templates Sudheer fills in:
+
+========================
+profile/master_profile.md
+========================
+# Sudheer's Master Profile
+<!-- Fill every section. Agents read this as ground truth. -->
+
+## Identity
+Full name: Sudheer Rayudu
+How to sign messages: Sudheer
+Location: [Your city]
+LinkedIn: [Your LinkedIn URL]
+
+## Who I am — one line
+[Write one sentence: what you are, not what you want.
+Example: "Full-stack engineer who builds enterprise applications and AI automation systems from scratch."]
+
+## What I am currently building
+- [Project 1 — what it is and what problem it solves]
+- [Project 2]
+- [Certification in progress — name and provider]
+- JobFlow OS — AI-powered job networking automation with multi-agent Chrome orchestration
+
+## Work history
+[Most recent role]
+Company: [Name]
+Title: [Your title]
+Duration: [Start - Present]
+What I did:
+- [Specific thing you built with impact]
+- [Another specific thing]
+- [Tech used]
+
+[Previous role — repeat format]
+
+## Technical skills
+Languages: [Python, JavaScript, TypeScript, SQL, etc.]
+Frameworks: [React, Node.js, FastAPI, etc.]
+AI & Automation: [Anthropic Claude API, LangChain, Selenium, etc.]
+Data & Analytics: [Pandas, dbt, BigQuery, Power BI, etc.]
+Cloud: [AWS / GCP / Azure — specific services]
+Databases: [PostgreSQL, MongoDB, SQLite, ChromaDB, etc.]
+
+## Certifications
+- [Name] — [Provider] — [Year]
+
+## Projects worth mentioning
+Project 1: [Name]
+Problem: [One sentence]
+Built: [What, tech, scale]
+Result: [What happened after]
+
+## What I am looking for
+Role types: [Senior PM, Engineering Manager, Technical Lead, etc.]
+Company types: [Scale-stage startups, AI-native, enterprise SaaS, etc.]
+What I want to work on: [AI products, automation, data infrastructure, etc.]
+What I do NOT want: [Be honest]
+
+## My edge — why I am different
+- I do not just manage — I build. I understand the code, the data, the infra.
+- I am actively building AI agents and automation systems NOW — not learning, building.
+- I bridge technical depth with product thinking — rare combination.
+- [Add your specific edges here]
+
+========================
+profile/tone_guide.md
+========================
+# Sudheer's Tone Guide
+<!-- Agents read this before writing any message or story. Be specific. -->
+
+## How I sound
+Register: Direct and conversational — technical when it fits
+In one sentence: [How you describe your own communication style]
+
+## What I never say
+- I hope this message finds you well
+- I'd love to
+- I came across your profile
+- I was really impressed
+- I'm very passionate
+- Excited to connect
+- Looking forward to hearing from you
+- Exploring new opportunities
+- Results-driven
+- Proven track record
+- [Add your own banned phrases]
+
+## How I open a message
+My preference: [Hook-first / Mutual-first / Work-first]
+Example of an opening I love:
+"[Paste a real example]"
+
+## How I close
+My preferred close: [e.g. "Two words. 'Worth connecting.' Done."]
+Closings I use: ["Worth connecting.", "Wanted to be in your network.", "Would value your perspective."]
+Closings I do not use: ["Looking forward to connecting!", "Would love to schedule a call"]
+
+## Tone by company type
+Early-stage startups: [e.g. Casual, builder-to-builder, skip formality]
+Scale-stage companies: [e.g. Direct but slightly more structured]
+Enterprise/public: [e.g. Professional but still crisp]
+AI-native companies: [e.g. Lead with what I'm building in AI]
+
+## Examples — the gold standard
+Example 1: "[Paste a message you sent or received that felt exactly right]"
+Why it works: [One sentence]
+
+Example 2: "[Another example]"
+Why it works: [One sentence]
+
+---
+
+EXECUTION SEQUENCE
+
+Step 1: Create all 8 skill files in backend/skills/ using content above
+Step 2: Create profile/master_profile.md and profile/tone_guide.md using templates above
+Step 3: Apply DIRECTIVE_01 — run all 5 tests — confirm pass
+Step 4: Apply DIRECTIVE_02 — run all 4 tests — confirm pass
+Step 5: Apply DIRECTIVE_03 — run all 4 tests — confirm pass
+Step 6: Apply DIRECTIVE_04 — run all 4 tests — confirm pass
+Step 7: Apply DIRECTIVE_05 — run all 4 tests — confirm pass
+Step 8: Apply DIRECTIVE_06 — run all 4 tests — confirm pass
+
+After all tests pass, run the full integration test from DIRECTIVE_06:
+  1. POST /api/jobs/load
+  2. Run enrichment on 1 job
+  3. Run story generation on 1 job
+  4. Start 1 agent manually
+  5. Verify: context object builds, checkpoint writes, micro-skills load,
+     voice anchor prepends, guards run, output validates, failures are handled
+
+Do not run the system for real until all tests pass.
+
+---
+
+NOTE ON DIRECTIVE FILES
+The 6 DIRECTIVE_0X_*.txt files contain the detailed implementation specs.
+The skill file contents above are the full text — create them exactly as written.
+The directive files tell you HOW to wire them into the existing code.
+Read the directive for each step before writing any code for that step.

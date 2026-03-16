@@ -1,0 +1,527 @@
+DIRECTIVE 02 — MICRO-SKILL PER TOOL BOUNDARY
+=============================================
+Problem being solved: agents have one broad skill file per agent role.
+But inside each agent there are multiple distinct tool actions — each one
+needs its own precise instruction. Without it the agent improvises,
+and improvisation produces inconsistent, low-quality output.
+
+Fix: create a micro-skill for each tool boundary. Small, laser-focused,
+20-40 lines each. Injected into the Claude prompt at the exact moment
+that tool runs — not loaded once at startup and forgotten.
+
+Do NOT rebuild any existing agent. Only add the micro-skill files
+and wire them into the existing prompt builders.
+
+═══════════════════════════════════════════════
+CHANGE 1 — CREATE NEW FOLDER + 8 MICRO-SKILL FILES
+═══════════════════════════════════════════════
+Create folder: backend/skills/
+
+Create these 8 files inside it. Each file is plain text.
+Each file is injected into a Claude prompt at one specific moment.
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_search_query.txt
+────────────────────────────────────────────
+MICRO-SKILL: BUILD LINKEDIN SEARCH QUERY
+You are building a LinkedIn people search query for one company and role.
+Your output is used directly as a search URL parameter. Be precise.
+
+RULES:
+- Use the company's exact LinkedIn name — not a shortened version
+- Filter: 2nd degree connections first. If zero results: widen to 3rd.
+- People filter only — no jobs, no companies, no posts
+- Do not include seniority filter in the URL — LinkedIn's seniority filter is unreliable
+- Target titles to search for (in priority order):
+    Engineering Manager, Director of Engineering, VP Engineering,
+    Head of Product, Director of Product, Senior PM, Principal PM,
+    Staff Engineer, Senior Engineer, Data Engineering, ML Engineer,
+    Platform Engineer, Automation Engineer
+- Build 2 query variants: one broad (company name only), one targeted (company + role keyword)
+- Return JSON: {"query_broad": "...", "query_targeted": "...", "company_linkedin_name": "..."}
+
+WHAT NOT TO DO:
+- Do not search for Recruiter, Talent, HR, People Partner, Sourcer — ever
+- Do not use the job title from the job description verbatim — it may not match LinkedIn titles
+- Do not add location filter unless the role is explicitly location-specific
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_profile_extract.txt
+────────────────────────────────────────────
+MICRO-SKILL: EXTRACT DATA FROM A LINKEDIN PROFILE PAGE
+You have just loaded a LinkedIn profile page via Selenium.
+Your job: extract exactly these fields and nothing else.
+Do not summarise. Do not interpret. Extract what is there.
+
+FIELDS TO EXTRACT (use null if not found — never guess):
+  name:               full name from the page header
+  title:              current job title — exact text, no paraphrasing
+  company:            current company name — exact text
+  linkedin_url:       current browser URL
+  headline:           the short tagline under their name
+  summary:            first 400 characters of the About section — empty string if none
+  current_role_duration: time in current role — e.g. "2 yr 3 mo" — null if not shown
+  past_roles:         list of up to 3 previous job titles + companies (title at company)
+  mutual_connections: integer — the number shown next to mutual connections, 0 if none
+  connection_degree:  "1st" / "2nd" / "3rd" — from the connect button area
+  recent_activity:    topic of their most recent post or comment — null if none visible
+  skills_visible:     list of up to 5 skills from the Skills section — empty list if hidden
+
+QUALITY RULES:
+- If the page did not load (error, redirect, login wall): return null for all fields
+  and set a flag: {"load_failed": true, "reason": "brief description"}
+- If the profile is in a language other than English: extract anyway, note the language
+- Never combine fields — name is name, title is title, they are never the same field
+- current_role_duration must be a string like "1 yr" or "6 mo" — not a date range
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_score_contact.txt
+────────────────────────────────────────────
+MICRO-SKILL: SCORE A LINKEDIN PROFILE FOR SUDHEER
+You have a LinkedIn profile and Sudheer's full context.
+Score this person 1-10 for how worthwhile it is to reach out.
+This score directly determines whether Sudheer sees this person at all.
+
+SCORING RUBRIC — be precise:
+  9-10: All of these are true:
+        - Title is exactly the type Sudheer should connect with (EM, Director, VP, Senior PM)
+        - 2nd degree connection (mutual connections > 0)
+        - Recent LinkedIn activity in last 30 days
+        - Profile shows technical or AI/product signal
+
+  7-8:  Most of these are true:
+        - Good title match (senior IC or manager level)
+        - 2nd or 3rd degree
+        - Some technical or product signal in profile
+
+  5-6:  Borderline — one of these:
+        - Title is adjacent but not ideal
+        - 3rd degree, no mutuals
+        - Very thin profile — hard to personalise a message
+
+  1-4:  Do not surface. Applies if ANY of these:
+        - Title contains: Recruiter, Talent, HR, People Partner, Sourcer
+        - No relevance to what Sudheer does
+        - 3rd degree, no signal, no activity
+
+HARD RULES:
+- Never score a Recruiter above 4 regardless of company or mutual connections
+- A 2nd degree mediocre title beats a 3rd degree perfect title — degree matters
+- Recent activity is a strong positive signal — they are reachable right now
+
+RETURN JSON with exactly these fields:
+  score:       integer 1-10
+  reason:      2 sentences max — WHY this score, name specific signals
+  fit_angle:   which of Sudheer's strengths applies most to this person
+               (AI/automation builder / full-stack enterprise / data+analytics /
+                certifications / product thinking — pick the strongest one)
+  hook_source: best available hook type:
+               "mutual_connection" / "recent_activity" / "role_signal" /
+               "ai_signal" / "company_direction" / "past_role"
+  surface:     true if score >= 6, false if score < 6
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_draft_message.txt
+────────────────────────────────────────────
+MICRO-SKILL: DRAFT A LINKEDIN CONNECTION MESSAGE FOR SUDHEER
+You have the full context object. Write two draft messages.
+One message. Done right. That is the entire job.
+
+VOICE — Sudheer is a builder. Direct. No filler. No corporate language.
+These words and phrases are banned — never use them:
+  "I hope this finds you well", "I'd love to", "I came across your profile",
+  "I was really impressed", "I'm very passionate", "excited to connect",
+  "I'd be honored", "looking forward to hearing from you",
+  "I noticed we share similar interests", "exploring new opportunities",
+  "open to new challenges", "results-driven", "proven track record",
+  "leverage" (as a business verb), "synergy", "circle back", "touch base"
+
+LENGTH — judge by seniority of recipient:
+  VP / Director / C-Suite:    target 120-180 characters
+  Senior Manager / Head of:   target 180-240 characters
+  Senior IC / Staff:          target 200-260 characters
+  Manager / PM / Engineer:    target 200-280 characters
+  Hard ceiling: 300 characters (LinkedIn limit)
+
+STRUCTURE — 3 parts, must not sound structural:
+  LINE 1 — the hook: one specific real observation about THEM
+    Use hook_source from scoring to pick the hook type:
+    mutual_connection → "We're both connected to [name]..."
+    recent_activity   → reference the topic of their recent post
+    ai_signal         → reference AI/automation in their headline
+    role_signal       → reference something specific from their role history
+    company_direction → reference a specific company signal from enrichment
+
+  LINE 2 — the connection: one sentence naming what Sudheer builds
+    Use fit_angle from scoring to pick the angle:
+    AI/automation builder   → "building AI automation systems..."
+    full-stack enterprise   → "building enterprise applications from scratch..."
+    data+analytics          → "working at the intersection of data and product..."
+    certifications          → reference the most relevant cert to this role
+    product thinking        → "bridging engineering and product at scale..."
+
+  LINE 3 — the close (optional, only if needed, max 7 words):
+    "Worth connecting." / "Wanted to be in your network." / "Would value your perspective."
+
+PERSONALIZATION CHECK — before finalising each draft, verify:
+  [ ] Line 1 references something specific to THIS person (not just their title)
+  [ ] Line 2 names something Sudheer actually builds
+  [ ] Zero banned phrases
+  [ ] Under target length for this person's seniority
+  [ ] Reads like one person to another — not a template
+
+RETURN JSON:
+  draft_a:       message text — hook from personal activity/background
+  draft_b:       message text — hook from company/role signal
+  recommended:   "A" or "B" with one sentence reason
+  hook_source:   what was used as the hook
+  char_count_a:  integer
+  char_count_b:  integer
+  applied_preferences: list of preference rules applied from ctx
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_enrichment_search.txt
+────────────────────────────────────────────
+MICRO-SKILL: BUILD ENRICHMENT SEARCH QUERIES
+You are building web search queries to research a company and role.
+Your queries are passed to DuckDuckGo. Write precise queries, not broad ones.
+
+QUERY SEQUENCE — run in this exact order:
+  1. "{company} engineering team culture product 2024 2025"
+  2. "{company} {role_title} responsibilities skills requirements"
+  3. "{company} recent news funding roadmap AI automation"
+  4. "{company} linkedin employees team structure"
+
+For each query:
+  - Fetch top 3 results only
+  - Extract only signal-dense text: team language, tech stack, product direction,
+    company mission, recent hires, culture signals
+  - Discard: boilerplate, cookie notices, navigation, ads, job listing HTML
+  - Max 3000 chars per page after cleaning
+  - If a page returns no useful text: mark it as "empty" and skip — do not retry
+
+WHAT TO LOOK FOR — these are the signals that matter for Sudheer:
+  Tech stack mentions (especially AI, automation, data, cloud)
+  Team structure references (who leads eng, who leads product)
+  Recent product launches or pivots
+  Company size signals (startup vs scale vs enterprise)
+  Cultural language (builder culture / data-driven / move fast / etc)
+  Any mentions of roles similar to what Sudheer does
+
+RETURN: raw combined text — do not synthesise yet, just return the cleaned text.
+The synthesis step is separate (ms_enrichment_synthesise.txt).
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_enrichment_synthesise.txt
+────────────────────────────────────────────
+MICRO-SKILL: SYNTHESISE ENRICHMENT DATA INTO STRUCTURED INTELLIGENCE
+You have raw web text from 4 searches about one company and role.
+Your job: extract only what is useful for Sudheer's outreach.
+Do not fabricate. If data is not in the raw text, use "not found".
+
+RETURN JSON with exactly these fields — no extras, no omissions:
+  company_summary:      2-3 sentences. What they do, current trajectory, what they care about.
+                        No filler. No "the company was founded in...".
+  team_info:            Relevant team or department. Size if found. Who leads it. null if not found.
+  tech_stack:           List of technologies actually mentioned in the raw text. Empty list if none.
+  role_signals:         List of skills and keywords from job description language. Empty list if none.
+  culture_signals:      List of culture descriptors only if explicitly found in the text.
+                        Do not infer culture. Only include what was stated.
+  linkedin_company_url: Full URL if found. "not found" if not.
+  fit_indicators:       List of 3-5 specific connections between Sudheer's background and this role.
+                        EACH indicator must name a specific skill Sudheer has AND a specific signal
+                        from the raw text. No vague statements.
+                        BAD: "Sudheer has technical skills relevant to this role"
+                        GOOD: "Role requires internal automation tooling — Sudheer builds enterprise
+                               automation systems from scratch"
+  contact_targets:      List of 2-3 ideal contact types. Each: {title, function, reason}
+                        Priority: team leads and senior ICs first. Recruiters last and only if
+                        nothing else is found.
+  enrichment_confidence: "HIGH" / "MEDIUM" / "LOW"
+                          HIGH: found real team data, role signals, fit indicators
+                          MEDIUM: found company data but thin on role specifics
+                          LOW: sparse results, mostly generic info
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_story_write.txt
+────────────────────────────────────────────
+MICRO-SKILL: WRITE SUDHEER'S POSITIONING STORY FOR ONE ROLE
+You have Sudheer's profile, enrichment data, and learned preferences.
+Write a positioning framework — not a cover letter, not a summary.
+This is the document every other agent reads to understand how to represent
+Sudheer for this specific role.
+
+CRISP OVER COMPREHENSIVE. SHORT OVER THOROUGH.
+If you are padding a section, you are doing it wrong.
+
+WRITE EXACTLY THESE SECTIONS — use these exact headers:
+
+HEADLINE:
+  One sentence. Max 15 words.
+  Must name what Sudheer IS — not what he wants.
+  Must reference something specific from THIS role or company.
+  BAD: "Experienced developer looking for new opportunities"
+  GOOD: "Full-stack builder turning AI and automation into enterprise-grade product systems"
+
+KEY_STRENGTHS:
+  Exactly 5 bullets. Max 12 words each.
+  Format: [what Sudheer did] — [why it matters for this role]
+  Each strength must connect a real thing from his profile to a signal from enrichment.
+
+TALKING_POINTS:
+  4-6 bullets. Story-form sentences. Specific. Active voice.
+  These are what agents pull from when describing Sudheer in messages.
+  No buzzwords. No "passionate about". No "excited to".
+
+GAP_FRAMING:
+  1-3 sentences on any gaps between Sudheer's profile and role requirements.
+  Be honest. Be confident. Not defensive.
+  If no gaps: write "No significant gaps identified."
+
+OUTREACH_TONE:
+  2 sentences only. Tell message agent exactly how to sound for this company.
+  Derive from culture_signals in enrichment.
+
+BANNED WORDS — never appear in any section:
+  passionate, excited, leverage, synergy, impactful, journey, seasoned,
+  results-driven, dynamic, proven track record, strong communication skills,
+  looking to, hoping to, love to, would be great to
+
+────────────────────────────────────────────
+FILE: backend/skills/ms_preference_infer.txt
+────────────────────────────────────────────
+MICRO-SKILL: INFER WHY SUDHEER MADE THIS DECISION
+You are given one decision: an approve, edit, or skip.
+You have the full context of what the agent showed Sudheer when he decided.
+Your job: infer WHY he made this decision and extract a durable preference rule.
+
+Be specific. A vague inference is useless.
+
+BAD inferred_why: "User preferred this contact"
+GOOD inferred_why: "User approved because the person is a 2nd degree connection with an
+                    Engineering Manager title — matches their pattern of targeting eng leads
+                    over product leads at technical companies"
+
+BAD inferred_preference: "User has preferences about contacts"
+GOOD inferred_preference: "Prefer 2nd degree Engineering Managers over 3rd degree Product Managers
+                           at technical companies"
+
+CONFIDENCE SCALE:
+  5: Decision clearly fits a pattern seen multiple times before
+  4: Strong signal but first or second time seeing it
+  3: Moderate signal — could be situational
+  2: Weak signal — hard to generalise from this single decision
+  1: No clear signal — log but do not apply as a rule
+
+RETURN JSON:
+  inferred_why:        string, 1-2 sentences, specific
+  inferred_preference: string, one actionable rule
+  confidence:          integer 1-5
+  category:            one of: CONTACT_TARGETING / MESSAGE_TONE /
+                       MESSAGE_STRUCTURE / RELEVANCE_THRESHOLD / COMPANY_CONTEXT
+
+═══════════════════════════════════════════════
+CHANGE 2 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/skills/skill_loader.py
+
+Tell Claude Code:
+  Create this file. It loads micro-skill text files and injects them
+  into Claude prompts at the right moment.
+
+  SKILL_MAP = {
+      "search_query":           "backend/skills/ms_search_query.txt",
+      "profile_extract":        "backend/skills/ms_profile_extract.txt",
+      "score_contact":          "backend/skills/ms_score_contact.txt",
+      "draft_message":          "backend/skills/ms_draft_message.txt",
+      "enrichment_search":      "backend/skills/ms_enrichment_search.txt",
+      "enrichment_synthesise":  "backend/skills/ms_enrichment_synthesise.txt",
+      "story_write":            "backend/skills/ms_story_write.txt",
+      "preference_infer":       "backend/skills/ms_preference_infer.txt",
+  }
+
+  _cache = {}   # module-level cache — load each file once per process
+
+  def load_skill(skill_name: str) -> str:
+      """
+      Returns the text of a micro-skill file.
+      Caches after first load — files do not change during a run.
+      Raises FileNotFoundError if skill_name not in SKILL_MAP.
+      Raises FileNotFoundError if file does not exist on disk.
+      """
+
+  def inject_skill(skill_name: str, prompt: str) -> str:
+      """
+      Prepends the micro-skill to the prompt with a clear separator.
+      Format:
+        === SKILL: {skill_name.upper()} ===
+        {skill text}
+        === END SKILL ===
+
+        {original prompt}
+      Returns the combined string.
+      """
+
+  def inject_skill_as_system(skill_name: str) -> str:
+      """
+      Returns the skill text formatted as a system prompt.
+      Used when the micro-skill IS the system prompt for a Claude call.
+      Format:
+        {skill text}
+      No separator needed — it is the full system prompt.
+      """
+
+═══════════════════════════════════════════════
+CHANGE 3 — MODIFY EXISTING FILES
+═══════════════════════════════════════════════
+Tell Claude Code: wire skill_loader into the existing agent files.
+Surgical changes only — do not rewrite the functions.
+
+IN backend/agents/linkedin_agent.py:
+  Add import: from backend.skills.skill_loader import inject_skill_as_system, inject_skill
+
+  In search_people(): the Claude call that builds the search query:
+    system = inject_skill_as_system("search_query")
+    Pass this as system param to ask_json()
+
+  In read_profile(): the Selenium extraction step does NOT call Claude.
+    But after extraction, if you call Claude to clean/interpret raw HTML:
+    system = inject_skill_as_system("profile_extract")
+
+  In score_and_draft() / wherever score_contact() is called:
+    In message_agent.py score_contact():
+    system = inject_skill_as_system("score_contact")
+    Pass to ask_json()
+
+  In message_agent.py draft_message():
+    system = inject_skill_as_system("draft_message")
+    Pass to ask_json()
+
+IN backend/agents/enrichment_agent.py:
+  Add import: from backend.skills.skill_loader import inject_skill_as_system
+
+  In search_and_fetch(): no Claude call here — no change needed.
+
+  In enrich_job(): the Claude synthesis call:
+    system = inject_skill_as_system("enrichment_synthesise")
+    Pass to ask_json()
+
+  The search query building step (if it uses Claude):
+    system = inject_skill_as_system("enrichment_search")
+    Pass to ask_json()
+
+IN backend/agents/story_agent.py:
+  Add import: from backend.skills.skill_loader import inject_skill_as_system
+
+  In generate_story(): the main Claude call:
+    Replace STORY_SYSTEM constant with:
+    system = inject_skill_as_system("story_write")
+    Pass to ask()
+
+IN backend/memory/decision_log.py:
+  Add import: from backend.skills.skill_loader import inject_skill_as_system
+
+  In record_decision(): the Claude inference call:
+    Replace INFERENCE_SYSTEM constant with:
+    system = inject_skill_as_system("preference_infer")
+    Pass to ask_json()
+
+═══════════════════════════════════════════════
+CHANGE 4 — REMOVE OLD INLINE SYSTEM PROMPTS
+═══════════════════════════════════════════════
+Tell Claude Code:
+  After wiring skill_loader, remove the old hardcoded system prompt constants
+  from these files. They are now replaced by the micro-skill files.
+
+  In backend/agents/linkedin_agent.py:
+    Remove: BRIEFING_SYSTEM constant (the one for opening briefings)
+    Keep: the briefing still happens — just no longer needs a hardcoded system prompt
+    The opening briefing is a simple ask() call — use a short inline system:
+      "Write a 2-3 sentence agent briefing. Be specific about the role and one key finding."
+
+  In backend/agents/enrichment_agent.py:
+    Remove: SYNTHESIS_SYSTEM constant
+    It is replaced by ms_enrichment_synthesise.txt via skill_loader.
+
+  In backend/agents/story_agent.py:
+    Remove: STORY_SYSTEM constant
+    It is replaced by ms_story_write.txt via skill_loader.
+
+  In backend/memory/decision_log.py:
+    Remove: INFERENCE_SYSTEM constant
+    It is replaced by ms_preference_infer.txt via skill_loader.
+
+  In backend/agents/message_agent.py:
+    Remove: SCORE_SYSTEM constant — replaced by ms_score_contact.txt
+    Remove: DRAFT_SYSTEM constant — replaced by ms_draft_message.txt
+
+═══════════════════════════════════════════════
+TEST — VERIFY ALL CHANGES WORK
+═══════════════════════════════════════════════
+Test 1 — skill loader works:
+  python -c "
+  from backend.skills.skill_loader import load_skill, inject_skill_as_system
+  text = load_skill('draft_message')
+  print('loaded chars:', len(text))
+  print('has banned phrases list:', 'BANNED' in text)
+  system = inject_skill_as_system('score_contact')
+  print('system has rubric:', 'SCORING RUBRIC' in system)
+  "
+  Expected: loaded chars > 500, both True
+
+Test 2 — caching works (second call is instant):
+  python -c "
+  import time
+  from backend.skills.skill_loader import load_skill
+  t1 = time.time(); load_skill('draft_message'); t2 = time.time()
+  t3 = time.time(); load_skill('draft_message'); t4 = time.time()
+  print('first load ms:', round((t2-t1)*1000))
+  print('cached load ms:', round((t4-t3)*1000))
+  "
+  Expected: second load is near-zero ms
+
+Test 3 — score_contact uses micro-skill:
+  python -c "
+  from backend.agents.message_agent import score_contact
+  from backend.memory.context_object import build_initial_context
+  ctx = build_initial_context(job_id=1, session_id=1)
+  ctx['current_person'] = {
+    'name': 'Test Person', 'title': 'Technical Recruiter',
+    'headline': 'Connecting top talent', 'mutual_connections': 2,
+    'connection_degree': '2nd', 'recent_activity': None,
+    'summary': '', 'past_roles': [], 'current_role_duration': None,
+    'skills_visible': []
+  }
+  result = score_contact(ctx)
+  print('score:', result['score'])
+  print('surface:', result['surface'])
+  "
+  Expected: score <= 4, surface False (recruiter hard rule)
+
+Test 4 — story agent uses micro-skill (no STORY_SYSTEM constant anymore):
+  python -c "
+  import inspect
+  from backend.agents import story_agent
+  src = inspect.getsource(story_agent)
+  print('old constant removed:', 'STORY_SYSTEM' not in src)
+  print('skill_loader imported:', 'skill_loader' in src)
+  "
+  Expected: both True
+
+═══════════════════════════════════════════════
+END OF DIRECTIVE 02
+═══════════════════════════════════════════════
+Files created:    backend/skills/ms_search_query.txt
+                  backend/skills/ms_profile_extract.txt
+                  backend/skills/ms_score_contact.txt
+                  backend/skills/ms_draft_message.txt
+                  backend/skills/ms_enrichment_search.txt
+                  backend/skills/ms_enrichment_synthesise.txt
+                  backend/skills/ms_story_write.txt
+                  backend/skills/ms_preference_infer.txt
+                  backend/skills/skill_loader.py
+Files modified:   backend/agents/linkedin_agent.py
+                  backend/agents/enrichment_agent.py
+                  backend/agents/story_agent.py
+                  backend/agents/message_agent.py
+                  backend/memory/decision_log.py

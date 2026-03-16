@@ -1,0 +1,296 @@
+DIRECTIVE 04 — PRE-ACTION CHECKLIST FOR CHROME ACTIONS
+========================================================
+Problem being solved: the LinkedIn agent clicks and navigates without
+first verifying the page loaded correctly, the expected element exists,
+and the result makes sense. A failed page load silently produces garbage
+data. A CAPTCHA gets treated as a profile. An empty search result gets
+processed as if it had hits.
+
+Fix: a pre-action guard function that runs before every Selenium action
+that matters. If the guard fails: the action does not run. The agent
+logs it, emits the right event, and decides what to do next.
+
+Do NOT rebuild linkedin_agent.py. Add the guard layer on top.
+
+═══════════════════════════════════════════════
+CHANGE 1 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/agents/chrome_guards.py
+
+Tell Claude Code:
+  Create this file. It contains all pre-action guard functions
+  used before every significant Selenium action.
+
+  Import: from selenium.webdriver.common.by import By
+  Import: from selenium.webdriver.support.ui import WebDriverWait
+  Import: from selenium.webdriver.support import expected_conditions as EC
+  Import: import time
+
+  ── GUARD 1 ──
+  def guard_page_loaded(driver, expected_url_fragment: str = None,
+                        timeout: int = 8) -> dict:
+      """
+      Checks the page loaded successfully before any extraction.
+      Returns: {"ok": bool, "reason": str}
+
+      Checks in order:
+        1. driver.current_url does not contain "linkedin.com/login"
+           If it does: {"ok": False, "reason": "redirected_to_login"}
+        2. If expected_url_fragment provided: it must be in driver.current_url
+           If not: {"ok": False, "reason": "wrong_page"}
+        3. document.readyState == "complete" via driver.execute_script()
+           If not complete after timeout: {"ok": False, "reason": "page_not_ready"}
+        4. Check for CAPTCHA: look for element with id "captcha-challenge"
+           or text "Let's do a quick security check" anywhere on page
+           If found: {"ok": False, "reason": "captcha_detected"}
+        5. Check for "Page not found" or "This profile is no longer available"
+           If found: {"ok": False, "reason": "profile_not_found"}
+        6. All checks pass: {"ok": True, "reason": "ok"}
+      """
+
+  ── GUARD 2 ──
+  def guard_search_has_results(driver) -> dict:
+      """
+      Checks a LinkedIn people search returned at least one result.
+      Returns: {"ok": bool, "count": int, "reason": str}
+
+      Checks:
+        1. Look for element class "search-results-container" — must exist
+           If not: {"ok": False, "count": 0, "reason": "no_results_container"}
+        2. Look for "No results found" text anywhere on page
+           If found: {"ok": False, "count": 0, "reason": "zero_results"}
+        3. Count profile card elements (class "entity-result__title-text")
+           If count == 0: {"ok": False, "count": 0, "reason": "zero_profiles"}
+        4. If count > 0: {"ok": True, "count": count, "reason": "ok"}
+      """
+
+  ── GUARD 3 ──
+  def guard_profile_is_readable(driver) -> dict:
+      """
+      Checks a profile page has enough data to be worth extracting.
+      Returns: {"ok": bool, "reason": str, "quality": str}
+
+      Checks:
+        1. guard_page_loaded() must pass first — if not: return its result
+        2. Profile name element must exist (h1 in main content area)
+           If not: {"ok": False, "reason": "no_name_element", "quality": "empty"}
+        3. Check if profile is private or restricted:
+           Look for "LinkedIn Member" as the name text
+           If found: {"ok": False, "reason": "private_profile", "quality": "private"}
+        4. Check content richness:
+           - Has About section: True/False
+           - Has Experience section with at least 1 entry: True/False
+           - Has headline text: True/False
+           Score: 0 = only name visible, 1 = name + title, 2 = name + title + one section,
+                  3 = name + title + about + experience
+           If score == 0: {"ok": False, "reason": "profile_too_sparse", "quality": "empty"}
+           If score >= 1: {"ok": True, "reason": "ok", "quality": "good" if score >= 2 else "minimal"}
+      """
+
+  ── GUARD 4 ──
+  def guard_connect_button_available(driver) -> dict:
+      """
+      Checks the Connect button is available on a profile page before clicking.
+      Returns: {"ok": bool, "reason": str, "button_type": str}
+
+      Checks:
+        1. guard_page_loaded(driver, "linkedin.com/in/") must pass
+        2. Look for primary Connect button (aria-label contains "Connect")
+           If found: {"ok": True, "reason": "ok", "button_type": "direct"}
+        3. If not found: look for "More" button that might contain Connect
+           Click More, check dropdown for Connect option
+           If found: {"ok": True, "reason": "ok", "button_type": "in_more_menu"}
+        4. Check if already connected (button says "Message" or "Following")
+           If so: {"ok": False, "reason": "already_connected", "button_type": "none"}
+        5. Check if pending (button says "Pending")
+           If so: {"ok": False, "reason": "invitation_pending", "button_type": "none"}
+        6. Nothing found: {"ok": False, "reason": "connect_unavailable", "button_type": "none"}
+      """
+
+  ── GUARD 5 ──
+  def guard_message_box_open(driver) -> dict:
+      """
+      Checks the "Add a note" message box is open and ready to type.
+      Called after clicking Connect and then "Add a note".
+      Returns: {"ok": bool, "reason": str}
+
+      Checks:
+        1. Look for textarea with placeholder "Add a note..." or similar
+           If found and visible: {"ok": True, "reason": "ok"}
+        2. If not found: look for "Add a note" button and click it
+           Wait 2 seconds, check again for textarea
+           If found after click: {"ok": True, "reason": "ok"}
+        3. If still not found: {"ok": False, "reason": "message_box_not_found"}
+        4. Check textarea character limit warning not already showing
+           (means box is empty and ready)
+           If already showing: {"ok": False, "reason": "textarea_not_empty"}
+      """
+
+═══════════════════════════════════════════════
+CHANGE 2 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/agents/linkedin_agent.py
+
+Tell Claude Code:
+  Add import at top: from backend.agents.chrome_guards import (
+      guard_page_loaded, guard_search_has_results,
+      guard_profile_is_readable, guard_connect_button_available,
+      guard_message_box_open
+  )
+
+  Then wrap each major action with its guard. Surgical changes only.
+
+  ── WRAP 1: search_people() ──
+  After navigating to the search URL and before extracting results:
+    guard_result = guard_search_has_results(self.driver)
+    if not guard_result["ok"]:
+        self.log("SEARCH_GUARD_FAILED", guard_result["reason"], "FAILED")
+        if guard_result["reason"] == "zero_results":
+            self.emit("AGENT_MESSAGE", {
+                "message": f"No results found for {job['company']} with 2nd-degree filter. "
+                           f"Want me to try without the connection filter?"
+            })
+            return ([], ctx)  # return empty, let agent wait for reply
+        else:
+            self.emit("ERROR", {
+                "error_type": "SEARCH_FAILED",
+                "message": guard_result["reason"],
+                "recoverable": True
+            })
+            return ([], ctx)
+
+  ── WRAP 2: read_profile() ──
+  After navigating to the profile URL and before extracting:
+    guard_result = guard_page_loaded(self.driver, "linkedin.com/in/")
+    if not guard_result["ok"]:
+        self.log("PAGE_GUARD_FAILED", guard_result["reason"], "FAILED")
+        if guard_result["reason"] == "captcha_detected":
+            self.emit("ERROR", {
+                "error_type": "CAPTCHA_DETECTED",
+                "message": "LinkedIn is showing a CAPTCHA. All agents paused.",
+                "recoverable": False
+            })
+            self.stop_flag.set()  # stop this agent entirely
+            return (None, ctx)
+        elif guard_result["reason"] == "redirected_to_login":
+            self.emit("AGENT_MESSAGE", {
+                "message": "LinkedIn logged me out. Please log back in to Chrome, then tell me to resume."
+            })
+            self.pause_flag.set()
+            return (None, ctx)
+        else:
+            return (None, ctx)  # skip this profile silently
+
+    readability = guard_profile_is_readable(self.driver)
+    if not readability["ok"]:
+        self.log("PROFILE_UNREADABLE", readability["reason"], "SKIPPED")
+        return (None, ctx)
+    if readability["quality"] == "minimal":
+        ctx = add_observation(ctx, "profile_read", "LOW_PROFILE",
+                              "profile is minimal — limited data for personalisation")
+
+  ── WRAP 3: contact_agent.send_invite() — before clicking Connect ──
+  In contact_agent.py send_invite(), before finding the Connect button:
+    guard_result = guard_connect_button_available(driver)
+    if not guard_result["ok"]:
+        if guard_result["reason"] == "already_connected":
+            return {"sent": False, "reason": "already_connected"}
+        elif guard_result["reason"] == "invitation_pending":
+            return {"sent": False, "reason": "invitation_pending"}
+        else:
+            return {"sent": False, "reason": guard_result["reason"]}
+
+  ── WRAP 4: after clicking "Add a note" ──
+  In contact_agent.py, after clicking the add note button:
+    guard_result = guard_message_box_open(driver)
+    if not guard_result["ok"]:
+        return {"sent": False, "reason": guard_result["reason"]}
+
+  ── WRAP 5: change send_invite() return signature ──
+  Currently send_invite() returns bool.
+  Change it to return dict: {"sent": bool, "reason": str}
+  "reason" is "ok" on success, or the guard failure reason on failure.
+
+  Update all callers of send_invite() in linkedin_agent.py:
+    Old: success = send_invite(...)
+         if success:
+    New: result = send_invite(...)
+         if result["sent"]:
+         if not result["sent"]:
+             self.log("SEND_FAILED", result["reason"], "FAILED")
+             if result["reason"] == "already_connected":
+                 ctx = mark_contacted(linkedin_url, ctx)  # still mark as contacted
+
+═══════════════════════════════════════════════
+CHANGE 3 — ADD CAPTCHA GLOBAL PAUSE
+═══════════════════════════════════════════════
+File to modify: backend/workers/agent_pool.py
+
+Tell Claude Code:
+  When any agent emits ERROR with error_type == "CAPTCHA_DETECTED",
+  the WebSocket handler in main.py receives it and must:
+    1. Call pool.pause_all_agents()
+    2. Emit AGENT_MESSAGE to frontend from "system":
+       "CAPTCHA detected by Agent {id}. All agents paused to protect your LinkedIn account.
+        Please resolve the CAPTCHA in the Chrome window, then resume agents from the dashboard."
+
+  Add to AgentPool:
+  def pause_all_agents(self):
+      for agent in self.agents.values():
+          agent.pause_flag.set()
+          agent.emit("AGENT_STATUS", {"status": "paused", "current_action": "paused — CAPTCHA"})
+
+  In backend/main.py WebSocket handler, in the ERROR routing:
+    elif msg.get("type") == "AGENT_EVENT" and payload.get("error_type") == "CAPTCHA_DETECTED":
+        pool.pause_all_agents()
+        await ws_manager.send("frontend", "AGENT_MESSAGE", {
+            "agent_id": "system",
+            "message": f"CAPTCHA detected. All agents paused. "
+                       f"Resolve in Chrome, then resume from dashboard."
+        })
+
+═══════════════════════════════════════════════
+TEST — VERIFY ALL CHANGES WORK
+═══════════════════════════════════════════════
+Test 1 — guards import correctly:
+  python -c "
+  from backend.agents.chrome_guards import (
+      guard_page_loaded, guard_search_has_results,
+      guard_profile_is_readable, guard_connect_button_available,
+      guard_message_box_open
+  )
+  print('all guards imported OK')
+  "
+  Expected: prints OK, no ImportError
+
+Test 2 — send_invite returns dict not bool:
+  python -c "
+  import inspect
+  from backend.agents.contact_agent import send_invite
+  src = inspect.getsource(send_invite)
+  print('returns dict:', 'return {' in src or \"return {'sent'\" in src)
+  "
+  Expected: True
+
+Test 3 — CAPTCHA response is wired:
+  python -c "
+  import inspect
+  from backend.workers.agent_pool import AgentPool
+  src = inspect.getsource(AgentPool)
+  print('pause_all_agents exists:', 'pause_all_agents' in src)
+  "
+  Expected: True
+
+Test 4 — integration: simulate a failed page load
+  # With a running agent (in test mode, no real Chrome):
+  # Manually call guard_page_loaded with a mock driver that returns login URL
+  # Verify the agent emits the correct event and does not extract
+
+═══════════════════════════════════════════════
+END OF DIRECTIVE 04
+═══════════════════════════════════════════════
+Files created:    backend/agents/chrome_guards.py
+Files modified:   backend/agents/linkedin_agent.py  (5 guard wraps)
+                  backend/agents/contact_agent.py    (return type + 2 guards)
+                  backend/workers/agent_pool.py      (pause_all_agents)
+                  backend/main.py                    (CAPTCHA routing)

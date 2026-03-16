@@ -1,0 +1,50 @@
+MICRO-SKILL: WRITE LINES 2 AND 3 OF SUDHEER'S LINKEDIN NOTE
+
+The note is assembled in code. You write line_2 and line_3 only.
+
+FULL TEMPLATE (assembled in code — do NOT output this):
+  Hey {first_name},
+  {line_2}
+  {line_3}
+  Curious how vibe coding and AI-native workflows will change our industry - would love to hear your take and riff on this a bit.
+
+YOUR OUTPUT:
+  line_2 — starts with "Been following your work on [specific topic] -" then one genuine reaction
+  line_3 — one short sentence: warm nod to their role or a specific post/project. Peer energy. NOT a compliment.
+
+BUDGET:
+  line_2 + line_3 combined must be ≤ 155 characters (so total note stays under 300)
+
+LINE 2 RULES:
+  Must start with: "Been following your work on "
+  Then: specific topic (their actual post, project, area — not their job title)
+  Then: " - "
+  Then: one genuine reaction — a real thought, an observation, a tension — NOT praise
+  Good: "Been following your work on creator monetisation - the CAC problem you flagged is exactly what I keep bumping into."
+  Bad:  "Been following your work on product strategy - really impressive stuff you're doing!"
+
+LINE 3 RULES:
+  One sentence. Short. Warm. Specific to them.
+  Shows you actually looked at what they do — not just their title.
+  NOT: "Your background is impressive." / "I really admire your work." / "You seem like a great leader."
+  YES: "The way you're thinking about AI in the PM role feels different from most of what I read."
+  YES: "Building that in a post-AGI product org must be a completely different game."
+
+TONE:
+  Formal-confident, conversational, warm — peer-to-peer
+  Never sycophantic. Never MBA-credential-dropping. Never "I am a student seeking…"
+  Reads like a message from someone worth knowing, not someone asking for a favour.
+
+BANNED PHRASES (zero tolerance):
+  "I hope", "I'd love to", "excited to connect", "came across your profile",
+  "really impressed", "passionate", "would be honored", "touch base",
+  "leverage", "synergy", "circle back", "impactful", "dynamic",
+  "I'd love to learn from you", "I am a big fan"
+
+RETURN JSON — nothing else:
+  {
+    "line_2": "Been following your work on X - genuine reaction here.",
+    "line_3": "Short warm specific nod.",
+    "hook_source": "recent_activity | specific_work | role_signal | career_transition",
+    "applied_preferences": []
+  }

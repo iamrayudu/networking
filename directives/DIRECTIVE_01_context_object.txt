@@ -1,0 +1,464 @@
+DIRECTIVE: FIX CONTEXT PROBLEM — GROWING CONTEXT OBJECT
+=========================================================
+This directive tells Claude Code exactly what to change in the existing JobFlow OS codebase.
+Do NOT rebuild anything that already works. Only add or modify what is listed here.
+Read every section before touching a single file.
+
+PROBLEM BEING SOLVED
+--------------------
+Currently every tool call inside an agent rebuilds context from scratch —
+loads profile, loads role, loads prefs — then discards it all when done.
+By the time the message agent drafts, it has lost why the person was chosen,
+what was noticed on their profile, what the hook should be.
+Result: generic messages.
+
+Fix: one Python dict (the context object) built ONCE at agent startup,
+passed through every tool call, and grown at each step.
+Never rebuilt mid-agent. Checkpointed to SQLite after every tool call
+so the agent can resume if it crashes.
+
+═══════════════════════════════════════════════
+CHANGE 1 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/memory/context_object.py
+
+Tell Claude Code:
+  Create this file. It defines the context object structure and all
+  functions that build, update, checkpoint, and restore it.
+
+  SECTION A — build_initial_context(job_id, session_id) -> dict
+    Builds the context object ONCE at agent startup.
+    Calls existing functions from database.py and decision_log.py.
+    Returns a dict with exactly these 5 top-level keys:
+
+    "permanent" — dict, never mutated after build:
+      profile:        full text of profile/master_profile.md
+      tone_guide:     full text of profile/tone_guide.md
+      role:           result of get_job(job_id)
+      enrichment:     result of get_enrichment_by_job(job_id)
+      story:          text of stories/{company}_{role}.md if exists, else ""
+      preferences:    result of get_preference_summary()
+      prior_contacts: result of get_contacts_by_job(job_id)
+                      stored as set of linkedin_urls for O(1) duplicate check
+
+    "session" — dict, updated during run:
+      session_id:            int
+      agent_id:              str, set when agent starts
+      standing_instructions: str, default ""
+      candidates_found:      list, grows as search runs
+      actions_taken:         list of {step, person, timestamp}
+
+    "current_person" — dict, RESET between profiles, NOT between tool calls:
+      name, title, linkedin_url, headline, summary,
+      past_roles (list), mutual_connections (int),
+      connection_degree, recent_activity
+      All default to None or [] or 0.
+
+    "current_score" — dict, RESET between profiles:
+      score (int or None), reason (str), fit_angle (str), hook_source (str)
+      All default to None.
+
+    "observations" — list, RESET between profiles:
+      Each item is a dict: {step (str), category (str), note (str)}
+      Categories are fixed (see CHANGE 2).
+      If nothing fits a fixed category, use category="freeform".
+      Default: empty list.
+
+    If profile/master_profile.md does not exist:
+      raise FileNotFoundError with message:
+      "master_profile.md not found. Create profile/master_profile.md before running agents."
+
+    If enrichment does not exist for this job_id:
+      raise ValueError with message:
+      "No enrichment found for job_id {job_id}. Run enrichment agent first."
+
+  SECTION B — reset_for_next_person(ctx) -> dict
+    Resets ONLY current_person, current_score, and observations to defaults.
+    Does NOT touch permanent or session.
+    Call this between each LinkedIn profile — not between tool calls.
+    Returns the modified ctx.
+
+  SECTION C — checkpoint(ctx) -> None
+    Writes ctx to SQLite agent_checkpoints table (see CHANGE 3).
+    Serialises ctx to JSON with json.dumps().
+    Called after every tool call that modifies ctx.
+    If SQLite write fails: log warning, do NOT raise — never let a checkpoint
+    failure crash the agent.
+
+  SECTION D — restore_checkpoint(agent_id, job_id, session_id) -> dict or None
+    Reads the latest checkpoint for this agent+job+session from SQLite.
+    Deserialises with json.loads().
+    Returns the dict if found, None if not found.
+    Called at agent startup BEFORE build_initial_context.
+    If a checkpoint exists: return it and skip build_initial_context.
+    If no checkpoint: proceed with build_initial_context normally.
+
+  SECTION E — is_duplicate(linkedin_url, ctx) -> bool
+    Checks if linkedin_url is already in ctx["permanent"]["prior_contacts"].
+    prior_contacts is stored as a Python set of URLs for O(1) lookup.
+    Also checks ctx["session"]["candidates_found"] for within-session dupes.
+    Returns True if duplicate, False if new.
+    This is the ONLY place duplicate checking happens. Do not check elsewhere.
+
+  SECTION F — mark_contacted(linkedin_url, ctx) -> dict
+    Adds linkedin_url to ctx["permanent"]["prior_contacts"] set.
+    Also appends to ctx["session"]["actions_taken"].
+    Call this immediately after a successful send — not after approval.
+    Returns modified ctx.
+
+═══════════════════════════════════════════════
+CHANGE 2 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/memory/observation_categories.py
+
+Tell Claude Code:
+  Create this file. It defines the fixed observation categories agents
+  use when writing notes to themselves during a LinkedIn agent run.
+
+  OBSERVATION_CATEGORIES = {
+    "AI_SIGNAL":         "profile mentions AI, ML, automation, agents, or LLMs",
+    "MUTUAL_CONNECTION": "has mutual connections with Sudheer",
+    "RECENT_ACTIVITY":   "posted or commented on LinkedIn in last 30 days",
+    "BUILDER_SIGNAL":    "profile shows they build things — engineer, technical PM, founder",
+    "ENTERPRISE_SIGNAL": "has worked at enterprise-scale companies or products",
+    "DATA_SIGNAL":       "profile touches data, analytics, pipelines, or BI",
+    "STARTUP_SIGNAL":    "early-stage company, small team, fast-moving role",
+    "SENIORITY_MATCH":   "title seniority matches what Sudheer should target",
+    "TITLE_MISMATCH":    "title is adjacent but not ideal — note why still surfacing",
+    "LOW_PROFILE":       "sparse profile — limited About, no activity, thin history",
+    "HOOK_CANDIDATE":    "something specific enough to use as a message hook",
+    "freeform":          "agent observed something that fits no fixed category",
+  }
+
+  def add_observation(ctx, step, category, note):
+    """
+    Adds one observation to ctx["observations"].
+    If category not in OBSERVATION_CATEGORIES: force category to "freeform".
+    Appends: {step, category, note} to ctx["observations"].
+    Returns modified ctx.
+    """
+
+  def get_observations_by_category(ctx, category):
+    """
+    Returns list of observation notes matching a category.
+    Used by message agent to pull hook candidates.
+    """
+
+  def has_observation(ctx, category):
+    """
+    Returns True if at least one observation of this category exists.
+    Used for quick checks: if has_observation(ctx, "MUTUAL_CONNECTION"): ...
+    """
+
+═══════════════════════════════════════════════
+CHANGE 3 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/memory/database.py
+
+Tell Claude Code:
+  Add one new table to the existing init_db() function.
+  Do NOT touch any existing table definitions.
+
+  New table: agent_checkpoints
+    id             INTEGER PRIMARY KEY AUTOINCREMENT
+    agent_id       TEXT NOT NULL
+    job_id         INTEGER NOT NULL
+    session_id     INTEGER NOT NULL
+    ctx_json       TEXT NOT NULL        -- full serialised context object
+    tool_step      TEXT NOT NULL        -- which step was just completed
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+
+  Add index: CREATE INDEX IF NOT EXISTS idx_checkpoint_lookup
+    ON agent_checkpoints(agent_id, job_id, session_id)
+
+  Add two functions to database.py:
+
+  save_checkpoint(agent_id, job_id, session_id, ctx_json, tool_step) -> None
+    INSERT INTO agent_checkpoints(agent_id, job_id, session_id, ctx_json, tool_step)
+    VALUES (?, ?, ?, ?, ?)
+    One row per checkpoint — do NOT upsert, keep history.
+
+  get_latest_checkpoint(agent_id, job_id, session_id) -> str or None
+    SELECT ctx_json FROM agent_checkpoints
+    WHERE agent_id=? AND job_id=? AND session_id=?
+    ORDER BY created_at DESC LIMIT 1
+    Returns ctx_json string or None if no rows found.
+
+═══════════════════════════════════════════════
+CHANGE 4 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/agents/linkedin_agent.py
+
+Tell Claude Code:
+  Make these exact changes to the existing LinkedInAgent class.
+  Do NOT rewrite the class. Surgical changes only.
+
+  CHANGE 4a — Import new modules at top of file:
+    from backend.memory.context_object import (
+        build_initial_context, reset_for_next_person,
+        checkpoint, restore_checkpoint, is_duplicate, mark_contacted
+    )
+    from backend.memory.observation_categories import add_observation, has_observation
+
+  CHANGE 4b — Replace the start() method's context loading section.
+    Find the line that currently calls build_agent_context().
+    Replace it with this logic:
+
+      # Try to restore from checkpoint first
+      ctx = restore_checkpoint(self.agent_id, self.job_id, self.session_id)
+      if ctx:
+          self.emit('AGENT_MESSAGE', {
+              'message': f'Resuming from checkpoint at step: {ctx["session"]["actions_taken"][-1]["step"] if ctx["session"]["actions_taken"] else "start"}'
+          })
+      else:
+          ctx = build_initial_context(self.job_id, self.session_id)
+          ctx["session"]["agent_id"] = self.agent_id
+
+      # Apply standing instructions if set
+      if hasattr(self, 'standing_instructions') and self.standing_instructions:
+          ctx["session"]["standing_instructions"] = self.standing_instructions
+
+      checkpoint(ctx)  # first checkpoint — context loaded
+
+  CHANGE 4c — In search_people():
+    After building candidates list, add:
+      ctx["session"]["candidates_found"] = candidates
+      checkpoint(ctx)   # checkpoint: search complete
+    Pass ctx into the function signature: search_people(self, ctx) -> tuple[list, dict]
+    Return (candidates, ctx)
+
+  CHANGE 4d — In read_profile():
+    Change signature to: read_profile(self, linkedin_url, ctx) -> tuple[dict|None, dict]
+    Before navigating: check is_duplicate(linkedin_url, ctx) — if True, return (None, ctx)
+    After extracting profile fields: populate ctx["current_person"] with extracted values
+    Add observations using add_observation():
+      - If "AI" or "automation" or "agent" in headline/summary: add AI_SIGNAL observation
+      - If mutual_connections > 0: add MUTUAL_CONNECTION observation
+      - If recent_activity exists: add RECENT_ACTIVITY observation
+      - Check for BUILDER_SIGNAL, ENTERPRISE_SIGNAL, DATA_SIGNAL based on past_roles text
+    checkpoint(ctx)  — checkpoint: profile read
+    Return (profile_dict, ctx)
+
+  CHANGE 4e — In score_and_draft() / wherever scoring happens:
+    Change signature to accept ctx, return (result_dict, ctx)
+    After scoring: populate ctx["current_score"] with score, reason, fit_angle, hook_source
+    checkpoint(ctx)  — checkpoint: scored
+
+  CHANGE 4f — In request_approval():
+    Change signature to accept ctx
+    After successful send (inside the 'approve'/'edit' branch):
+      ctx = mark_contacted(person_linkedin_url, ctx)
+      checkpoint(ctx)  — checkpoint: sent
+
+  CHANGE 4g — Between profiles (in the main loop over candidates):
+    After each profile is fully handled (approved/skipped/sent):
+      ctx = reset_for_next_person(ctx)
+      checkpoint(ctx)  — checkpoint: reset for next person
+
+═══════════════════════════════════════════════
+CHANGE 5 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/agents/message_agent.py
+
+Tell Claude Code:
+  Replace the current draft_message function signature and prompt builder.
+  Keep all existing imports. Only change what is listed.
+
+  CHANGE 5a — Change draft_message signature:
+    Old: draft_message(profile: dict, context: str) -> str
+    New: draft_message(ctx: dict) -> dict
+
+    It now receives the full context object, not a profile dict and a string.
+
+  CHANGE 5b — Replace the prompt builder inside draft_message with this logic:
+    Pull from ctx directly:
+      p       = ctx["permanent"]
+      person  = ctx["current_person"]
+      score   = ctx["current_score"]
+
+    Build hook_hints by checking observations:
+      hook_hints = []
+      if has_observation(ctx, "MUTUAL_CONNECTION"):
+          hook_hints.append("mutual connection exists — lead with this if possible")
+      if has_observation(ctx, "RECENT_ACTIVITY"):
+          notes = get_observations_by_category(ctx, "RECENT_ACTIVITY")
+          hook_hints.append(f"recent activity: {notes[0]}")
+      if has_observation(ctx, "HOOK_CANDIDATE"):
+          notes = get_observations_by_category(ctx, "HOOK_CANDIDATE")
+          hook_hints.append(f"specific hook candidate: {notes[0]}")
+      if has_observation(ctx, "AI_SIGNAL"):
+          hook_hints.append("AI signal in their profile — Sudheer's strongest angle")
+
+    Prompt must include ALL of these sections in this order:
+      1. SUDHEER'S VOICE: p["tone_guide"] (first 800 chars)
+      2. ROLE CONTEXT: p["role"]["company"], p["role"]["role_title"]
+      3. SUDHEER'S STORY ANGLE: p["story"] headline + talking_points section only
+      4. LEARNED PREFERENCES: p["preferences"]
+      5. PERSON: person["name"], person["title"], person["headline"],
+                 person["mutual_connections"], person["recent_activity"],
+                 person["connection_degree"]
+      6. WHY THIS PERSON WAS CHOSEN: score["reason"]
+      7. BEST FIT ANGLE: score["fit_angle"]
+      8. HOOK HINTS FROM PROFILE READ: "\n".join(hook_hints)
+      9. INSTRUCTION: "Write 2 draft messages per message skill rules.
+                       Return JSON with draft_a, draft_b, recommended,
+                       hook_source, char_count_a, char_count_b."
+
+  CHANGE 5c — Return the full dict from ask_json(), not just a string.
+
+═══════════════════════════════════════════════
+CHANGE 6 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/memory/context_builder.py
+
+Tell Claude Code:
+  This file is now DEPRECATED for agent use.
+  It is replaced by context_object.py for all agent flows.
+  Do NOT delete it — it may still be used by non-agent code.
+  Add this comment at the top of the file:
+
+  # DEPRECATED FOR AGENT USE — replaced by backend/memory/context_object.py
+  # context_builder.py is kept for backward compatibility only.
+  # New agents must use build_initial_context() from context_object.py.
+
+═══════════════════════════════════════════════
+CHANGE 7 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/agents/enrichment_agent.py
+File to modify: backend/agents/story_agent.py
+
+Tell Claude Code:
+  These agents do NOT need the full context object — they run before LinkedIn.
+  But they must NOT call build_agent_context() from context_builder.py anymore.
+  Change them to load data directly from database.py functions instead.
+
+  In enrichment_agent.py:
+    Replace any call to build_agent_context() with direct calls:
+      job = get_job(job_id)
+      prefs = get_preference_summary()
+    That is all enrichment needs.
+
+  In story_agent.py:
+    Replace any call to build_agent_context() with direct calls:
+      job = get_job(job_id)
+      enrichment = get_enrichment_by_job(job_id)
+      prefs = get_preference_summary()
+      profile = load_profile()   (already exists in story_agent.py)
+    That is all story agent needs.
+
+═══════════════════════════════════════════════
+DUPLICATE PREVENTION — HOW IT WORKS END TO END
+═══════════════════════════════════════════════
+For Claude Code to understand the full picture:
+
+Check 1 — on profile read (within a session):
+  is_duplicate() checks ctx["permanent"]["prior_contacts"] set.
+  prior_contacts is loaded from the contacts SQLite table at context build time.
+  If a linkedin_url already exists in contacts table: skip silently.
+  Never surface a person who was already contacted in any prior session.
+
+Check 2 — within the same session's candidate list:
+  is_duplicate() also checks ctx["session"]["candidates_found"].
+  If the same profile appears twice in search results: skip the second instance.
+
+Check 3 — after send:
+  mark_contacted() adds the URL to ctx["permanent"]["prior_contacts"] immediately.
+  So if two agents running in parallel both find the same person,
+  the second agent's is_duplicate() check will catch it mid-session.
+  This is why mark_contacted() must be called instantly after send —
+  not at session end, not at the next checkpoint — IMMEDIATELY.
+
+Check 4 — parallel agent safety:
+  Two agents running simultaneously both write to the same contacts table.
+  Before any agent calls insert_contact(), it must:
+    SELECT COUNT(*) FROM contacts WHERE linkedin_url = ? AND job_id = ?
+  If count > 0: skip. Do not insert. Do not send.
+  This is the database-level safety net that catches race conditions
+  that the in-memory set cannot catch between parallel threads.
+  Add this check to insert_contact() in database.py as a guard:
+    Wrap the INSERT in:
+      IF NOT EXISTS (SELECT 1 FROM contacts WHERE linkedin_url=? AND job_id=?)
+
+═══════════════════════════════════════════════
+TEST — VERIFY ALL CHANGES WORK
+═══════════════════════════════════════════════
+After all changes, run these tests in order:
+
+Test 1 — context object builds:
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  ctx = build_initial_context(job_id=1, session_id=1)
+  print(list(ctx.keys()))
+  print('profile loaded:', len(ctx['permanent']['profile']) > 0)
+  print('prior_contacts type:', type(ctx['permanent']['prior_contacts']))
+  "
+  Expected: 5 keys, profile loaded True, prior_contacts is a set
+
+Test 2 — checkpoint roundtrip:
+  python -c "
+  from backend.memory.context_object import build_initial_context, checkpoint, restore_checkpoint
+  ctx = build_initial_context(job_id=1, session_id=1)
+  ctx['session']['agent_id'] = 'agent_1'
+  ctx['session']['actions_taken'].append({'step': 'test', 'person': 'nobody'})
+  checkpoint(ctx)
+  restored = restore_checkpoint('agent_1', 1, 1)
+  print('restored:', restored is not None)
+  print('actions match:', restored['session']['actions_taken'][0]['step'] == 'test')
+  "
+  Expected: restored True, actions match True
+
+Test 3 — duplicate prevention:
+  python -c "
+  from backend.memory.context_object import build_initial_context, is_duplicate, mark_contacted
+  ctx = build_initial_context(job_id=1, session_id=1)
+  url = 'https://linkedin.com/in/testperson'
+  print('before mark:', is_duplicate(url, ctx))
+  ctx = mark_contacted(url, ctx)
+  print('after mark:', is_duplicate(url, ctx))
+  "
+  Expected: before mark False, after mark True
+
+Test 4 — observation system:
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  from backend.memory.observation_categories import add_observation, has_observation, get_observations_by_category
+  ctx = build_initial_context(job_id=1, session_id=1)
+  ctx = add_observation(ctx, 'profile_read', 'AI_SIGNAL', 'headline mentions AI automation tooling')
+  ctx = add_observation(ctx, 'profile_read', 'freeform', 'unusual background in both eng and PM')
+  print('has AI_SIGNAL:', has_observation(ctx, 'AI_SIGNAL'))
+  print('AI notes:', get_observations_by_category(ctx, 'AI_SIGNAL'))
+  "
+  Expected: has AI_SIGNAL True, notes list with one item
+
+Test 5 — message agent receives full context:
+  # Requires: existing job, enrichment, story, and a filled ctx with current_person
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  from backend.agents.message_agent import draft_message
+  ctx = build_initial_context(job_id=1, session_id=1)
+  ctx['current_person']['name'] = 'Sarah Kim'
+  ctx['current_person']['title'] = 'Senior PM, Payments'
+  ctx['current_person']['headline'] = 'Building AI-powered payment infra at Stripe'
+  ctx['current_person']['mutual_connections'] = 2
+  ctx['current_score']['score'] = 8
+  ctx['current_score']['reason'] = 'Eng PM background matches Sudheer AI automation work'
+  ctx['current_score']['fit_angle'] = 'AI automation builder angle'
+  ctx['current_score']['hook_source'] = 'AI signal in headline'
+  result = draft_message(ctx)
+  print('draft_a:', result['draft_a'])
+  print('chars:', result['char_count_a'])
+  "
+  Expected: specific message mentioning AI/automation, under 250 chars,
+            no generic filler phrases
+
+═══════════════════════════════════════════════
+END OF DIRECTIVE
+═══════════════════════════════════════════════
+Files created:    backend/memory/context_object.py
+                  backend/memory/observation_categories.py
+Files modified:   backend/memory/database.py          (new table + 2 functions)
+                  backend/agents/linkedin_agent.py    (7 surgical changes)
+                  backend/agents/message_agent.py     (3 surgical changes)
+                  backend/memory/context_builder.py   (deprecation comment only)
+                  backend/agents/enrichment_agent.py  (remove context_builder call)
+                  backend/agents/story_agent.py       (remove context_builder call)

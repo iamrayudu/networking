@@ -1,0 +1,1713 @@
+JOBFLOW OS V2 - CLAUDE CODE BUILD INSTRUCTIONS
+==============================================
+You are building a full-stack job networking automation app on the user's local machine.
+Read every line. Follow steps in exact order. Never skip. Never combine steps.
+Run the test at the end of each step before proceeding.
+
+=======================================
+WHAT YOU ARE BUILDING
+=======================================
+- React + Vite frontend at localhost:5173
+- FastAPI backend at localhost:8000
+- WebSocket real-time communication between agents and UI
+- Selenium Chrome agents that run in parallel, each working one job role
+- 4-layer memory: SQLite (facts) + ChromaDB (semantic) + decision_log (WHY) + preferences (learned style)
+- Two UI routes: /command (agent chat) and /dashboard (data intelligence)
+- Agents brief the user proactively. User approves every message before it is sent.
+- System learns user preferences across sessions. Gets smarter every run.
+
+=======================================
+ABSOLUTE RULES - NEVER BREAK THESE
+=======================================
+1. Every agent ALWAYS loads memory context before acting. Never acts blind.
+2. Every agent ALWAYS writes results back to memory after acting. Nothing is lost.
+3. Nothing is sent to LinkedIn without explicit APPROVE from user.
+4. Every approve/edit/skip is recorded in decision_log with Claude-inferred WHY.
+5. WebSocket is the only channel for real-time agent <-> UI communication.
+6. All file outputs (stories, drafts, sent, reports) are .md or .csv files on disk.
+7. config.yaml is the single source of all settings. No hardcoded values anywhere.
+8. Agents explicitly tell the user which learned preferences they are applying.
+
+=======================================
+STACK
+=======================================
+Frontend:  React 18, Vite, TailwindCSS, React Router, Zustand, Recharts
+Backend:   FastAPI, uvicorn, websockets, anthropic SDK
+Memory:    SQLite (built-in), ChromaDB (pip install)
+Agents:    Selenium, undetected-chromedriver
+Enrichment: duckduckgo-search, beautifulsoup4, requests
+Config:    pyyaml, python-dotenv
+
+=======================================
+FOLDER STRUCTURE - CREATE THIS FIRST
+=======================================
+jobflow_os/
+├── frontend/
+│   └── src/
+│       ├── hooks/
+│       ├── pages/
+│       └── components/
+│           ├── command/
+│           └── dashboard/
+├── backend/
+│   ├── core/
+│   ├── routers/
+│   ├── agents/
+│   ├── memory/
+│   └── workers/
+├── data/
+│   ├── input/
+│   └── enriched/
+├── profile/
+├── stories/
+├── drafts/
+├── sent/
+├── reports/
+└── logs/
+
+=======================================
+WEBSOCKET EVENT TYPES - MEMORIZE THESE
+=======================================
+Backend -> Frontend:
+  AGENT_BRIEFING     {agent_id, phase, message, timestamp}
+  AGENT_MESSAGE      {agent_id, message, timestamp}
+  APPROVAL_REQUEST   {agent_id, contact_id, person, message_draft, relevance, reason}
+  AGENT_STATUS       {agent_id, status, current_action}
+  PHASE_COMPLETE     {agent_id, phase, summary_stats}
+  PREFERENCE_APPLIED {agent_id, preference_rule, how_applied}
+  SESSION_UPDATE     {total_found, total_sent, total_pending}
+  SESSION_COMPLETE   {preferences_updated, summary}
+  ERROR              {agent_id, error_type, message, recoverable}
+
+Frontend -> Backend:
+  USER_REPLY         {agent_id, message, broadcast}
+  APPROVE            {contact_id, final_message, session_id, context_snapshot}
+  EDIT_APPROVE       {contact_id, edited_message, session_id, context_snapshot}
+  SKIP               {contact_id, reason, session_id, context_snapshot}
+  STANDING_INSTRUCTION {instruction_text, scope}
+  PAUSE_AGENT        {agent_id}
+  RESUME_AGENT       {agent_id}
+  STOP_AGENT         {agent_id}
+  START_SESSION      {job_ids, standing_instructions, max_agents}
+
+=======================================
+STEP 1 - SQLite database
+=======================================
+FILE: backend/memory/database.py
+
+Create these 9 tables with init_db():
+
+  jobs: id INTEGER PK, company TEXT, role_title TEXT, job_url TEXT,
+        location TEXT, notes TEXT, priority INTEGER DEFAULT 2,
+        status TEXT DEFAULT 'PENDING', created_at DATETIME, updated_at DATETIME
+
+  enrichment: id INTEGER PK, job_id INTEGER FK jobs.id,
+              company_summary TEXT, team_info TEXT, role_signals TEXT,
+              culture_signals TEXT, linkedin_company_url TEXT,
+              raw_json_path TEXT, enriched_at DATETIME
+
+  stories: id INTEGER PK, job_id INTEGER FK jobs.id,
+           story_file_path TEXT, headline TEXT,
+           key_strengths TEXT, talking_points TEXT,
+           gaps_to_address TEXT, generated_at DATETIME, last_edited_at DATETIME
+
+  contacts: id INTEGER PK, job_id INTEGER FK jobs.id,
+            session_id INTEGER FK sessions.id,
+            full_name TEXT, linkedin_url TEXT, title TEXT,
+            relevance_score INTEGER, relevance_reason TEXT,
+            invite_message TEXT, email_draft TEXT,
+            status TEXT DEFAULT 'FOUND',
+            agent_id TEXT, chroma_id TEXT, contacted_at DATETIME
+
+  approvals: id INTEGER PK, contact_id INTEGER FK contacts.id,
+             action TEXT, original_message TEXT, final_message TEXT,
+             edited BOOLEAN DEFAULT 0, timestamp DATETIME
+
+  agent_log: id INTEGER PK, agent_id TEXT, job_id INTEGER FK jobs.id,
+             session_id INTEGER FK sessions.id,
+             action TEXT, detail TEXT, status TEXT, timestamp DATETIME
+
+  decision_log: id INTEGER PK, session_id INTEGER FK sessions.id,
+                action_type TEXT, context_snapshot TEXT,
+                your_action TEXT, inferred_why TEXT,
+                inferred_preference TEXT, confidence INTEGER,
+                chroma_id TEXT, timestamp DATETIME
+
+  preferences: id INTEGER PK, category TEXT, rule TEXT,
+               evidence_count INTEGER DEFAULT 1,
+               confidence REAL DEFAULT 0.5,
+               first_observed DATETIME, last_updated DATETIME,
+               active BOOLEAN DEFAULT 1
+
+  sessions: id INTEGER PK, started_at DATETIME, ended_at DATETIME,
+            standing_instructions TEXT, jobs_count INTEGER DEFAULT 0,
+            contacts_found INTEGER DEFAULT 0, messages_sent INTEGER DEFAULT 0,
+            preferences_updated INTEGER DEFAULT 0
+
+Implement these functions:
+  init_db()
+  insert_job(data: dict) -> int
+  get_job(id: int) -> dict
+  get_all_jobs() -> list[dict]
+  update_job_status(id: int, status: str)
+  insert_enrichment(data: dict) -> int
+  get_enrichment_by_job(job_id: int) -> dict
+  insert_story(data: dict) -> int
+  get_story_by_job(job_id: int) -> dict
+  insert_contact(data: dict) -> int
+  get_contacts_by_job(job_id: int) -> list[dict]
+  update_contact_status(id: int, status: str)
+  insert_approval(data: dict) -> int
+  log_agent_action(agent_id, job_id, session_id, action, detail, status)
+  insert_decision(data: dict) -> int
+  get_decisions_by_session(session_id: int) -> list[dict]
+  get_recent_decisions(limit: int = 50) -> list[dict]
+  upsert_preference(category, rule, evidence_count, confidence)
+  get_preferences(category: str = None) -> list[dict]
+  create_session(standing_instructions: str = '') -> int
+  end_session(id: int, stats: dict)
+  get_session(id: int) -> dict
+
+TEST:
+  python backend/memory/database.py
+  Expected: prints "Database initialized. All 9 tables created."
+  Open data/jobflow.db in DB Browser. Verify all 9 tables exist.
+
+=======================================
+STEP 2 - Config
+=======================================
+FILES: config.yaml, backend/config.py
+
+config.yaml full contents:
+  claude:
+    api_key: 'YOUR_KEY_HERE'
+    model: 'claude-sonnet-4-5-20251022'
+    max_tokens: 2000
+    story_max_tokens: 3000
+    decision_inference_max_tokens: 800
+  server:
+    host: 'localhost'
+    backend_port: 8000
+    frontend_port: 5173
+    websocket_path: '/ws'
+  paths:
+    input_excel: 'data/input/jobs.xlsx'
+    database: 'data/jobflow.db'
+    chroma_dir: 'data/chroma'
+    enriched_data: 'data/enriched/'
+    stories: 'stories/'
+    drafts: 'drafts/'
+    sent: 'sent/'
+    reports: 'reports/'
+    logs: 'logs/'
+    profile_dir: 'profile/'
+  enrichment:
+    max_pages_per_job: 5
+    search_delay_seconds: 2.5
+    search_queries_per_job: 4
+  agents:
+    max_parallel_agents: 5
+    contacts_per_company: 3
+    relevance_min_score: 6
+    action_delay_seconds: 3
+    pause_before_send: true
+    show_applied_preferences: true
+  linkedin:
+    profile_url: 'YOUR_LINKEDIN_URL'
+    max_invites_per_day: 20
+  memory:
+    decision_inference: true
+    preference_update_on_session_end: true
+    semantic_search_results: 5
+  logging:
+    level: 'INFO'
+    console: true
+    file: true
+
+backend/config.py:
+  import yaml
+  from pathlib import Path
+  ROOT = Path(__file__).parent.parent
+  def load_config():
+      with open(ROOT / 'config.yaml') as f:
+          return yaml.safe_load(f)
+  cfg = load_config()
+
+TEST:
+  python -c "from backend.config import cfg; print(cfg['claude']['model'])"
+  Expected: claude-sonnet-4-5-20251022
+
+=======================================
+STEP 3 - Claude API wrapper
+=======================================
+FILE: backend/core/claude_client.py
+
+import anthropic
+from backend.config import cfg
+
+client = anthropic.Anthropic(api_key=cfg['claude']['api_key'])
+
+def ask(prompt: str, system: str = None, max_tokens: int = None) -> str:
+  # Build messages list: [{"role": "user", "content": prompt}]
+  # Use cfg['claude']['model']
+  # max_tokens defaults to cfg['claude']['max_tokens']
+  # If system provided, add system parameter to create call
+  # Return message.content[0].text
+
+def ask_json(prompt: str, system: str = None) -> dict:
+  # Same as ask() but:
+  # Append to system: "Return only valid JSON. No markdown. No explanation."
+  # Strip ```json and ``` fences from response before parsing
+  # Return json.loads(cleaned_response)
+
+TEST:
+  python -c "from backend.core.claude_client import ask; print(ask('Say hello in 5 words'))"
+  Expected: 5-word sentence from Claude
+
+=======================================
+STEP 4 - ChromaDB vector store
+=======================================
+FILE: backend/memory/vector_store.py
+
+import chromadb
+from backend.config import cfg
+
+chroma = chromadb.PersistentClient(path=cfg['paths']['chroma_dir'])
+
+COLLECTIONS = [
+  'jobflow_decisions',
+  'jobflow_messages',
+  'jobflow_profiles',
+  'jobflow_briefings',
+  'jobflow_stories',
+]
+
+def get_collection(name: str):
+  # chroma.get_or_create_collection(name)
+
+def embed(collection: str, doc_id: str, text: str, metadata: dict) -> str:
+  # get_collection(collection).upsert(ids=[doc_id], documents=[text], metadatas=[metadata])
+  # Return doc_id
+
+def search(collection: str, query: str, n: int = None) -> list[dict]:
+  # n defaults to cfg['memory']['semantic_search_results']
+  # results = get_collection(collection).query(query_texts=[query], n_results=n)
+  # Return list of dicts: [{id, text, metadata, distance}]
+  # Handle case where collection has fewer than n documents
+
+def get_by_id(collection: str, doc_id: str) -> dict | None:
+  # get_collection(collection).get(ids=[doc_id])
+  # Return dict or None if not found
+
+def delete(collection: str, doc_id: str):
+  # get_collection(collection).delete(ids=[doc_id])
+
+TEST:
+  python -c "
+  from backend.memory.vector_store import embed, search
+  embed('jobflow_decisions', 'test_1', 'user skipped recruiter at Stripe', {'job_id': 1})
+  r = search('jobflow_decisions', 'recruiter skip')
+  print(r[0]['text'])
+  "
+  Expected: user skipped recruiter at Stripe
+  Check data/chroma/ folder was created.
+
+=======================================
+STEP 5 - Decision log
+=======================================
+FILE: backend/memory/decision_log.py
+
+from backend.memory.database import insert_decision, get_recent_decisions, get_preferences
+from backend.memory.vector_store import embed
+from backend.core.claude_client import ask_json
+import uuid, datetime
+
+INFERENCE_SYSTEM = """You analyze job networking decisions.
+Given the action type, context, and what the user did, return JSON with exactly these fields:
+{
+  "inferred_why": "2 sentence explanation of why user likely made this decision",
+  "inferred_preference": "one sentence general rule extracted, e.g. user prefers Senior ICs over recruiters",
+  "confidence": 3
+}
+confidence is integer 1-5. Return only JSON."""
+
+def record_decision(session_id: int, action_type: str, context_snapshot: dict, your_action: str) -> int:
+  # 1. Build prompt for Claude:
+  #    f"Action: {action_type}\nContext: {json.dumps(context_snapshot)}\nUser did: {your_action}"
+  # 2. Call ask_json(prompt, system=INFERENCE_SYSTEM)
+  # 3. Insert into decision_log table via insert_decision()
+  #    Include all fields: session_id, action_type, context_snapshot (json.dumps),
+  #    your_action, inferred_why, inferred_preference, confidence, timestamp=now
+  # 4. Generate chroma_id = str(uuid.uuid4())
+  # 5. Embed into jobflow_decisions:
+  #    text = f"{action_type}: {your_action}. Why: {inferred_why}. Preference: {inferred_preference}"
+  #    metadata = {"session_id": session_id, "action_type": action_type,
+  #                "job_id": context_snapshot.get("job_id", 0)}
+  # 6. Update row with chroma_id
+  # 7. Return inserted decision id
+
+def get_preference_summary(job_id: int = None) -> str:
+  # Get active preferences from preferences table
+  # Get last 20 decisions from decision_log
+  # Format as string:
+  #   "LEARNED PREFERENCES:\n"
+  #   + "\n".join([f"- {p['rule']} (confidence: {p['confidence']:.1f})" for p in prefs])
+  #   + "\n\nRECENT DECISION PATTERNS:\n"
+  #   + "\n".join([f"- {d['inferred_preference']}" for d in decisions if d['inferred_preference']])
+  # Return the formatted string
+
+TEST:
+  python -c "
+  from backend.memory.decision_log import record_decision, get_preference_summary
+  record_decision(
+    session_id=1,
+    action_type='SKIP',
+    context_snapshot={'job_id': 1, 'company': 'Stripe', 'person_title': 'Technical Recruiter', 'relevance_score': 7},
+    your_action='Skipped - recruiter role'
+  )
+  print(get_preference_summary())
+  "
+  Expected: preference summary block with at least one inferred rule printed
+
+=======================================
+STEP 6 - Context builder
+=======================================
+FILE: backend/memory/context_builder.py
+
+from pathlib import Path
+from backend.memory.database import get_job, get_enrichment_by_job, get_story_by_job, get_contacts_by_job
+from backend.memory.decision_log import get_preference_summary
+from backend.config import cfg
+import json
+
+def build_agent_context(job_id: int, session_id: int) -> str:
+  # Builds the full context string injected into every agent prompt.
+  # Must include ALL sections below. Missing sections = dumb agents.
+
+  # === YOUR PROFILE ===
+  # Read profile/master_profile.md - include full text
+  # Read profile/tone_guide.md - include full text
+  # If files don't exist, use placeholder: "Profile not yet written. Ask user to create profile/master_profile.md"
+
+  # === ROLE CONTEXT ===
+  # job = get_job(job_id)
+  # enrichment = get_enrichment_by_job(job_id) or {}
+  # Include: company, role_title, job_url, location, notes
+  # Include enrichment: company_summary, team_info, role_signals, culture_signals
+
+  # === YOUR STORY FOR THIS ROLE ===
+  # story = get_story_by_job(job_id)
+  # If story exists, read the file at story['story_file_path'] and include full text
+  # If no story: "Story not yet generated for this role."
+
+  # === LEARNED PREFERENCES ===
+  # Include get_preference_summary(job_id)
+
+  # === PRIOR CONTACTS AT THIS COMPANY ===
+  # contacts = get_contacts_by_job(job_id)
+  # If any: list each as "Already contacted: {name} ({title}) - status: {status}"
+  # This prevents duplicate outreach
+
+  # Return as one formatted string with clear section headers
+
+TEST:
+  # First insert a test job if none exist
+  python -c "
+  from backend.memory.database import insert_job
+  insert_job({'company': 'Stripe', 'role_title': 'Senior PM', 'priority': 1})
+  "
+  python -c "
+  from backend.memory.context_builder import build_agent_context
+  ctx = build_agent_context(job_id=1, session_id=1)
+  print(ctx[:800])
+  print(f'Total length: {len(ctx)} chars')
+  "
+  Expected: formatted context block, all sections present, >200 chars
+
+=======================================
+STEP 7 - Excel input parser + jobs router
+=======================================
+FILES: backend/phases/phase1_input.py, backend/routers/jobs.py
+
+backend/phases/phase1_input.py:
+
+  import pandas as pd
+  from backend.memory.database import insert_job, get_all_jobs
+  from backend.config import cfg
+
+  REQUIRED_COLUMNS = ['Company', 'Role']
+  OPTIONAL_COLUMNS = ['Job URL', 'Location', 'Notes', 'Priority']
+
+  def parse_excel(path: str) -> list[dict]:
+    # Read with pandas
+    # Check required columns exist - raise ValueError with helpful message if missing
+    # For each row:
+    #   company = row['Company']
+    #   role_title = row['Role']
+    #   job_url = row.get('Job URL', '')
+    #   location = row.get('Location', '')
+    #   notes = row.get('Notes', '')
+    #   priority = int(row.get('Priority', 2))
+    # Return list of clean dicts
+
+  def load_jobs_from_excel(path: str = None) -> dict:
+    # path defaults to cfg['paths']['input_excel']
+    # Call parse_excel()
+    # For each job: check if company+role_title already in DB - skip if exists
+    # Insert new jobs via insert_job()
+    # Return {'loaded': N, 'skipped': N, 'errors': []}
+
+backend/routers/jobs.py:
+
+  from fastapi import APIRouter, HTTPException
+  from backend.phases.phase1_input import load_jobs_from_excel
+  from backend.memory.database import get_all_jobs, get_job
+
+  router = APIRouter(prefix='/api/jobs', tags=['jobs'])
+
+  @router.post('/load')
+  def load_jobs():
+    return load_jobs_from_excel()
+
+  @router.get('/')
+  def list_jobs():
+    return get_all_jobs()
+
+  @router.get('/{job_id}')
+  def get_job_detail(job_id: int):
+    job = get_job(job_id)
+    if not job: raise HTTPException(404)
+    return job
+
+TEST:
+  Create data/input/jobs.xlsx with columns: Company, Role, Job URL, Priority
+  Add rows: Stripe/Senior PM, Figma/Product Lead, Linear/Head of PM
+  python -c "
+  from backend.phases.phase1_input import load_jobs_from_excel
+  print(load_jobs_from_excel())
+  "
+  Expected: {'loaded': 3, 'skipped': 0, 'errors': []}
+  Verify rows in jobs table via DB Browser
+
+=======================================
+STEP 8 - Enrichment agent
+=======================================
+FILE: backend/agents/enrichment_agent.py
+
+from duckduckgo_search import DDGS
+import requests, time, json
+from bs4 import BeautifulSoup
+from pathlib import Path
+from backend.core.claude_client import ask_json
+from backend.memory.database import get_job, get_all_jobs, insert_enrichment, update_job_status
+from backend.config import cfg
+
+SEARCH_TEMPLATES = [
+  '{company} company overview engineering team culture',
+  '{company} {role} job requirements skills experience',
+  '{company} recent news funding product 2024 2025',
+  '{company} linkedin employees team size',
+]
+
+SYNTHESIS_SYSTEM = """You extract structured company and role intelligence.
+Given raw web search text, return JSON with exactly these fields:
+{
+  "company_summary": "2-3 sentence company overview",
+  "team_info": "team structure, relevant department, size if found",
+  "role_signals": ["skill1", "skill2", "..."],
+  "culture_signals": ["signal1", "signal2", "..."],
+  "linkedin_company_url": "url or null",
+  "fit_indicators": ["reason this role is a good match", "..."]
+}
+Return only JSON."""
+
+def fetch_page_text(url: str, max_chars: int = 3000) -> str:
+  # GET url with timeout=8, headers with user-agent
+  # Parse with BeautifulSoup(response.text, 'html.parser')
+  # Get text = soup.get_text(separator=' ', strip=True)
+  # Return text[:max_chars]
+  # Return '' on any exception - never raise
+
+def search_and_fetch(query: str, n_results: int = 3) -> str:
+  # results = DDGS().text(query, max_results=n_results)
+  # For each result: fetch_page_text(result['href'])
+  # Sleep cfg['enrichment']['search_delay_seconds'] between fetches
+  # Return '\n\n'.join(all_texts)
+
+def enrich_job(job_id: int) -> dict:
+  # 1. job = get_job(job_id)
+  # 2. Run all SEARCH_TEMPLATES formatted with job company and role
+  # 3. Combine all raw text
+  # 4. Call ask_json(raw_text[:8000], system=SYNTHESIS_SYSTEM)
+  # 5. Save to data/enriched/{company}_{role}.json (sanitize filename)
+  # 6. insert_enrichment({job_id, ...all fields, raw_json_path, enriched_at})
+  # 7. update_job_status(job_id, 'ENRICHED')
+  # 8. Return enrichment dict
+
+def enrich_all_pending() -> dict:
+  # Get all jobs where status='PENDING'
+  # Call enrich_job() for each
+  # Return {'enriched': N, 'failed': N}
+
+TEST:
+  python -c "
+  from backend.agents.enrichment_agent import enrich_job
+  r = enrich_job(job_id=1)
+  print(r['company_summary'])
+  print(r['role_signals'])
+  "
+  Expected: real company summary + list of skill signals
+  Check data/enriched/ for saved JSON file
+
+=======================================
+STEP 9 - Story generation agent
+=======================================
+FILE: backend/agents/story_agent.py
+
+from backend.core.claude_client import ask
+from backend.memory.database import get_job, get_enrichment_by_job, insert_story, update_job_status
+from backend.memory.decision_log import get_preference_summary
+from backend.config import cfg
+from pathlib import Path
+import datetime
+
+STORY_SYSTEM = """You write tailored personal positioning stories for job applications.
+Given the candidate profile, role enrichment data, and learned preferences, write a story.
+Use these exact section headers:
+HEADLINE: one sentence positioning statement specific to this role
+KEY_STRENGTHS:
+- strength 1 with specific evidence
+- strength 2 with specific evidence
+- strength 3
+- strength 4
+- strength 5
+TALKING_POINTS:
+- narrative bullet 1 - story form, specific
+- narrative bullet 2
+- narrative bullet 3
+- narrative bullet 4
+GAP_FRAMING: how to address any gaps between profile and role requirements
+OUTREACH_TONE: 2 sentences on how to sound for this specific company culture
+Be specific. Use the candidate's actual experience. Apply tone preferences."""
+
+def load_profile() -> str:
+  profile_dir = Path(cfg['paths']['profile_dir'])
+  text = ''
+  for fname in ['master_profile.md', 'tone_guide.md']:
+    fpath = profile_dir / fname
+    if fpath.exists():
+      text += f'\n\n=== {fname} ===\n' + fpath.read_text()
+    else:
+      text += f'\n\n=== {fname} ===\nNot found. Create {fpath} with your background.'
+  return text
+
+def generate_story(job_id: int) -> dict:
+  # 1. job = get_job(job_id)
+  # 2. enrichment = get_enrichment_by_job(job_id)
+  # 3. profile = load_profile()
+  # 4. preferences = get_preference_summary(job_id)
+  # 5. Build prompt:
+  #    f"CANDIDATE PROFILE:\n{profile}\n\nROLE: {job['company']} - {job['role_title']}\n
+  #    ENRICHMENT:\n{json.dumps(enrichment)}\n\nLEARNED PREFERENCES:\n{preferences}"
+  # 6. response = ask(prompt, system=STORY_SYSTEM, max_tokens=cfg['claude']['story_max_tokens'])
+  # 7. Save to stories/{company}_{role}.md (sanitize filename)
+  # 8. Parse sections from response into dict fields
+  # 9. insert_story({job_id, story_file_path, headline, key_strengths, talking_points, gaps_to_address, generated_at})
+  # 10. Embed story text into jobflow_stories ChromaDB:
+  #     embed('jobflow_stories', f'story_{job_id}', response, {'job_id': job_id, 'company': job['company']})
+  # 11. update_job_status(job_id, 'STORY_READY')
+  # 12. Return dict with all story fields
+
+def generate_all_stories() -> dict:
+  # Get all jobs where status='ENRICHED'
+  # Call generate_story() for each
+  # Return {'generated': N, 'failed': N}
+
+TEST:
+  # Requires: profile/master_profile.md written with real content
+  # Requires: at least one ENRICHED job (run step 8 first)
+  python -c "
+  from backend.agents.story_agent import generate_story
+  s = generate_story(job_id=1)
+  print(s['headline'])
+  print(s['key_strengths'])
+  "
+  Expected: specific headline + strengths about the user for this role
+  Check stories/ folder for saved .md file. Read it. Does it sound like a strong pitch?
+
+=======================================
+STEP 10 - FastAPI app + WebSocket server
+=======================================
+FILES: backend/websocket_manager.py, backend/main.py
+
+backend/websocket_manager.py:
+
+  from fastapi import WebSocket
+  import asyncio, json, threading
+
+  class WebSocketManager:
+    def __init__(self):
+      self.connections: dict[str, WebSocket] = {}
+      self.loop = None  # Set to the running event loop on startup
+
+    async def connect(self, client_id: str, ws: WebSocket):
+      await ws.accept()
+      self.connections[client_id] = ws
+
+    def disconnect(self, client_id: str):
+      self.connections.pop(client_id, None)
+
+    async def send(self, client_id: str, event_type: str, payload: dict):
+      ws = self.connections.get(client_id)
+      if ws:
+        await ws.send_text(json.dumps({'type': event_type, 'payload': payload}))
+
+    async def broadcast(self, event_type: str, payload: dict):
+      for client_id in list(self.connections.keys()):
+        await self.send(client_id, event_type, payload)
+
+    def send_sync(self, client_id: str, event_type: str, payload: dict):
+      # Thread-safe version for agent threads
+      # Use asyncio.run_coroutine_threadsafe(self.send(...), self.loop)
+      if self.loop:
+        future = asyncio.run_coroutine_threadsafe(
+          self.send(client_id, event_type, payload), self.loop
+        )
+        future.result(timeout=5)
+
+  ws_manager = WebSocketManager()
+
+backend/main.py:
+
+  from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+  from fastapi.middleware.cors import CORSMiddleware
+  from backend.websocket_manager import ws_manager
+  from backend.memory.database import init_db
+  from backend.routers import jobs, agents_router, approvals, memory_router, reports
+  from backend.config import cfg
+  from backend.workers.agent_pool import pool
+  import asyncio, json
+
+  app = FastAPI(title='JobFlow OS V2')
+
+  app.add_middleware(CORSMiddleware,
+    allow_origins=[f"http://localhost:{cfg['server']['frontend_port']}"],
+    allow_methods=['*'], allow_headers=['*'])
+
+  app.include_router(jobs.router)
+  app.include_router(agents_router.router)
+  app.include_router(approvals.router)
+  app.include_router(memory_router.router)
+  app.include_router(reports.router)
+
+  @app.on_event('startup')
+  async def startup():
+    init_db()
+    ws_manager.loop = asyncio.get_event_loop()
+
+  @app.websocket('/ws')
+  async def websocket_endpoint(ws: WebSocket):
+    await ws_manager.connect('frontend', ws)
+    try:
+      while True:
+        data = await ws.receive_text()
+        msg = json.loads(data)
+        t = msg.get('type')
+        p = msg.get('payload', {})
+        if t == 'USER_REPLY':
+          if p.get('broadcast'):
+            pool.broadcast_instruction(p['message'])
+          else:
+            pool.route_user_reply(p['agent_id'], p['message'])
+        elif t == 'APPROVE':
+          pool.notify_agent(p['agent_id'], 'approve', p)
+        elif t == 'EDIT_APPROVE':
+          pool.notify_agent(p['agent_id'], 'edit', p)
+        elif t == 'SKIP':
+          pool.notify_agent(p['agent_id'], 'skip', p)
+        elif t == 'PAUSE_AGENT':
+          pool.pause_agent(p['agent_id'])
+        elif t == 'RESUME_AGENT':
+          pool.resume_agent(p['agent_id'])
+        elif t == 'STOP_AGENT':
+          pool.stop_agent(p['agent_id'])
+        elif t == 'START_SESSION':
+          pool.start_session(p['job_ids'], p.get('standing_instructions', ''))
+        elif t == 'STANDING_INSTRUCTION':
+          pool.apply_standing_instruction(p['instruction_text'], p.get('scope', 'ALL'))
+    except WebSocketDisconnect:
+      ws_manager.disconnect('frontend')
+
+TEST:
+  uvicorn backend.main:app --host localhost --port 8000 --reload
+  Expected: Application startup complete. No errors.
+  Open http://localhost:8000/docs - verify all route groups visible
+  Connect with: wscat -c ws://localhost:8000/ws
+  Send: {"type": "PING", "payload": {}}
+  Expected back: any response without crash
+
+=======================================
+STEP 11 - Approval router + memory.py router
+=======================================
+FILES: backend/routers/approvals.py, backend/routers/memory_router.py
+
+backend/routers/approvals.py:
+
+  from fastapi import APIRouter
+  from pydantic import BaseModel
+  from backend.memory.database import update_contact_status, insert_approval
+  from backend.memory.decision_log import record_decision
+  from backend.workers.agent_pool import pool
+
+  router = APIRouter(prefix='/api/approvals', tags=['approvals'])
+
+  class ApproveRequest(BaseModel):
+    contact_id: int
+    final_message: str
+    session_id: int
+    context_snapshot: dict
+    agent_id: str
+
+  class SkipRequest(BaseModel):
+    contact_id: int
+    reason: str = ''
+    session_id: int
+    context_snapshot: dict
+    agent_id: str
+
+  @router.post('/approve')
+  async def approve(req: ApproveRequest):
+    update_contact_status(req.contact_id, 'SENT')
+    insert_approval({'contact_id': req.contact_id, 'action': 'APPROVE',
+                     'final_message': req.final_message, 'edited': False})
+    record_decision(req.session_id, 'APPROVE', req.context_snapshot, req.final_message)
+    pool.notify_agent(req.agent_id, 'approve', {'final_message': req.final_message, 'contact_id': req.contact_id})
+    return {'status': 'approved', 'contact_id': req.contact_id}
+
+  @router.post('/edit_approve')
+  async def edit_approve(req: ApproveRequest):
+    update_contact_status(req.contact_id, 'SENT')
+    insert_approval({'contact_id': req.contact_id, 'action': 'EDIT_APPROVE',
+                     'final_message': req.final_message, 'edited': True})
+    record_decision(req.session_id, 'EDIT_APPROVE', req.context_snapshot, req.final_message)
+    pool.notify_agent(req.agent_id, 'edit', {'final_message': req.final_message, 'contact_id': req.contact_id})
+    return {'status': 'approved', 'contact_id': req.contact_id}
+
+  @router.post('/skip')
+  async def skip(req: SkipRequest):
+    update_contact_status(req.contact_id, 'SKIPPED')
+    insert_approval({'contact_id': req.contact_id, 'action': 'SKIP', 'final_message': ''})
+    record_decision(req.session_id, 'SKIP', req.context_snapshot, f'Skipped. {req.reason}')
+    pool.notify_agent(req.agent_id, 'skip', {'contact_id': req.contact_id})
+    return {'status': 'skipped', 'contact_id': req.contact_id}
+
+backend/routers/memory_router.py:
+
+  from fastapi import APIRouter
+  from backend.memory.database import get_recent_decisions, get_preferences, get_all_jobs, get_contacts_by_job
+  from backend.memory.vector_store import search
+
+  router = APIRouter(prefix='/api/memory', tags=['memory'])
+
+  @router.post('/search')
+  async def memory_search(body: dict):
+    results = search('jobflow_decisions', body['query'])
+    return {'results': results}
+
+  @router.get('/decisions')
+  async def get_decisions(limit: int = 20):
+    return get_recent_decisions(limit)
+
+  @router.get('/preferences')
+  async def get_prefs():
+    return get_preferences()
+
+  @router.get('/contacts')
+  async def all_contacts():
+    jobs = get_all_jobs()
+    all_contacts = []
+    for job in jobs:
+      contacts = get_contacts_by_job(job['id'])
+      for c in contacts:
+        c['company'] = job['company']
+        c['role'] = job['role_title']
+        all_contacts.append(c)
+    return all_contacts
+
+TEST:
+  curl -X POST http://localhost:8000/api/approvals/skip \
+    -H 'Content-Type: application/json' \
+    -d '{"contact_id": 1, "reason": "recruiter", "session_id": 1, "context_snapshot": {"job_id": 1}, "agent_id": "agent_1"}'
+  Expected: {"status": "skipped", "contact_id": 1}
+  Check decision_log table - verify inferred_why was generated by Claude
+
+=======================================
+STEP 12 - React frontend scaffold
+=======================================
+Run these commands exactly:
+
+  cd jobflow_os
+  npm create vite@latest frontend -- --template react
+  cd frontend
+  npm install
+  npm install -D tailwindcss postcss autoprefixer
+  npx tailwindcss init -p
+  npm install react-router-dom zustand recharts clsx
+
+Update tailwind.config.js content array:
+  content: ['./index.html', './src/**/*.{js,jsx}']
+
+Add to src/index.css:
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+
+src/App.jsx:
+  import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+  import CommandCenter from './pages/CommandCenter'
+  import Dashboard from './pages/Dashboard'
+  export default function App() {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path='/command' element={<CommandCenter />} />
+          <Route path='/dashboard' element={<Dashboard />} />
+          <Route path='/' element={<Navigate to='/command' />} />
+        </Routes>
+      </BrowserRouter>
+    )
+  }
+
+src/pages/CommandCenter.jsx:
+  export default function CommandCenter() {
+    return <div className="p-8 text-2xl font-bold">Command Center</div>
+  }
+
+src/pages/Dashboard.jsx:
+  export default function Dashboard() {
+    return <div className="p-8 text-2xl font-bold">Dashboard</div>
+  }
+
+TEST:
+  npm run dev
+  Open http://localhost:5173 - Expected: "Command Center"
+  Open http://localhost:5173/dashboard - Expected: "Dashboard"
+  No console errors.
+
+=======================================
+STEP 13 - WebSocket hook + Zustand store
+=======================================
+FILES: frontend/src/hooks/useAgentStore.js, frontend/src/hooks/useWebSocket.js
+
+frontend/src/hooks/useAgentStore.js:
+
+  import { create } from 'zustand'
+
+  export const useAgentStore = create((set, get) => ({
+    agents: {},
+    // agents[agent_id] = {
+    //   id, job_id, company, role, status, messages: [],
+    //   pendingApproval: null, unreadCount: 0, sessionStats: {}
+    // }
+
+    upsertAgent: (agent_id, data) => set(state => ({
+      agents: {
+        ...state.agents,
+        [agent_id]: { ...(state.agents[agent_id] || { messages: [], unreadCount: 0 }), ...data }
+      }
+    })),
+
+    addMessage: (agent_id, message) => set(state => {
+      const agent = state.agents[agent_id] || { messages: [], unreadCount: 0 }
+      return {
+        agents: {
+          ...state.agents,
+          [agent_id]: {
+            ...agent,
+            messages: [...agent.messages, { ...message, id: Date.now() }],
+            unreadCount: agent.unreadCount + 1
+          }
+        }
+      }
+    }),
+
+    clearUnread: (agent_id) => set(state => ({
+      agents: { ...state.agents, [agent_id]: { ...state.agents[agent_id], unreadCount: 0 } }
+    })),
+
+    setAgentStatus: (agent_id, status, current_action) => set(state => ({
+      agents: { ...state.agents, [agent_id]: { ...state.agents[agent_id], status, current_action } }
+    })),
+
+    setPendingApproval: (agent_id, approval) => set(state => ({
+      agents: { ...state.agents, [agent_id]: { ...state.agents[agent_id], pendingApproval: approval } }
+    })),
+
+    clearPendingApproval: (agent_id) => set(state => ({
+      agents: { ...state.agents, [agent_id]: { ...state.agents[agent_id], pendingApproval: null } }
+    })),
+
+    kpis: { jobs: 0, contacts: 0, sent: 0, replied: 0 },
+    setKpis: (kpis) => set({ kpis }),
+  }))
+
+frontend/src/hooks/useWebSocket.js:
+
+  import { useEffect, useRef, useCallback } from 'react'
+  import { useAgentStore } from './useAgentStore'
+
+  const WS_URL = 'ws://localhost:8000/ws'
+
+  export function useWebSocket() {
+    const ws = useRef(null)
+    const store = useAgentStore()
+
+    useEffect(() => {
+      ws.current = new WebSocket(WS_URL)
+
+      ws.current.onopen = () => console.log('WS connected')
+      ws.current.onclose = () => console.log('WS disconnected')
+      ws.current.onerror = (e) => console.error('WS error', e)
+
+      ws.current.onmessage = (event) => {
+        const { type, payload } = JSON.parse(event.data)
+        const aid = payload?.agent_id
+
+        switch(type) {
+          case 'AGENT_BRIEFING':
+          case 'AGENT_MESSAGE':
+            store.addMessage(aid, { role: 'agent', text: payload.message, phase: payload.phase })
+            store.upsertAgent(aid, { id: aid })
+            break
+          case 'APPROVAL_REQUEST':
+            store.setPendingApproval(aid, payload)
+            store.addMessage(aid, { role: 'approval', data: payload })
+            break
+          case 'AGENT_STATUS':
+            store.setAgentStatus(aid, payload.status, payload.current_action)
+            store.upsertAgent(aid, { company: payload.company, role: payload.role })
+            break
+          case 'PREFERENCE_APPLIED':
+            store.addMessage(aid, { role: 'system', text: `Applying preference: ${payload.preference_rule}` })
+            break
+          case 'SESSION_UPDATE':
+            store.setKpis(payload)
+            break
+          case 'PHASE_COMPLETE':
+            store.addMessage(aid, { role: 'agent', text: `Phase complete. ${JSON.stringify(payload.summary_stats)}` })
+            break
+        }
+      }
+
+      return () => ws.current?.close()
+    }, [])
+
+    const send = useCallback((type, payload) => {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({ type, payload }))
+      }
+    }, [])
+
+    return { send }
+  }
+
+TEST:
+  With backend running on :8000 and frontend on :5173
+  Open browser console on localhost:5173
+  Expected: "WS connected" in console
+  In backend terminal: verify new connection logged
+  No errors.
+
+=======================================
+STEP 14 - Command Center UI
+=======================================
+FILES:
+  frontend/src/pages/CommandCenter.jsx
+  frontend/src/components/command/AgentRoster.jsx
+  frontend/src/components/command/AgentChat.jsx
+  frontend/src/components/command/ApprovalCard.jsx
+  frontend/src/components/command/ContextPanel.jsx
+
+CommandCenter.jsx layout:
+  - 4-column grid: 64px | 220px | 1fr | 280px
+  - Height: 100vh, overflow hidden
+  - Col 1: icon sidebar - navigation dots/icons, settings at bottom
+  - Col 2: <AgentRoster />
+  - Col 3: <AgentChat agent={selectedAgent} send={send} />
+  - Col 4: <ContextPanel agent={selectedAgent} />
+  - State: selectedAgentId (string)
+  - Hooks: useWebSocket() for send, useAgentStore() for agents
+
+AgentRoster.jsx:
+  - Props: agents (from store), selectedId, onSelect(id), send
+  - Header: "Agents" label + "Start session" button
+  - For each agent in store.agents:
+    - Status dot color: running=green waiting=amber paused=red idle=gray
+    - Agent name: "Agent 1", "Agent 2" etc
+    - Company + Role subtitle (truncate at 24 chars)
+    - Unread badge: show count if > 0
+    - Highlight selected with left purple border
+  - Add role button at bottom: opens simple form, calls send('START_SESSION', {job_ids, standing_instructions})
+
+AgentChat.jsx:
+  - Props: agent, send
+  - Header: agent name, role, phase badge, pause/stop buttons
+  - Messages list (scrollable, auto-scroll to bottom on new message):
+    - role='agent': left-aligned, white background bubble, gray border
+    - role='user': right-aligned, purple background, white text
+    - role='system': centered, small, gray text italic
+    - role='approval': render <ApprovalCard data={msg.data} send={send} />
+  - Input bar at bottom: text input + send button
+  - On submit: send('USER_REPLY', {agent_id: agent.id, message, broadcast: false})
+  - Mark unread as read when this agent is selected: store.clearUnread(agent.id)
+
+ApprovalCard.jsx:
+  - Props: data (approval payload), send
+  - Border: amber/warning color
+  - Header: "Approval required" in amber
+  - Person row: avatar (initials circle), name, title, company, connection degree
+  - Relevance badge: score/10, green if >=8, amber if 5-7, red if <5
+  - Message preview: gray background box, italic
+  - State: isEditing (bool), editedMessage (string)
+  - Three buttons:
+    - "Approve & Send": send('APPROVE', {contact_id, final_message, agent_id, session_id, context_snapshot})
+    - "Edit": set isEditing=true, show textarea pre-filled with message
+    - "Skip": send('SKIP', {contact_id, agent_id, session_id, context_snapshot, reason: ''})
+  - When editing: show "Send edited" button: send('EDIT_APPROVE', {..., edited_message})
+
+ContextPanel.jsx:
+  - Props: agent
+  - Always visible, not collapsible
+  - Sections:
+    - Role: company, title, location
+    - Story headline: fetch from GET /api/jobs/{job_id} then stories
+    - Key strengths: display as small pills
+    - Memory - past decisions: fetch from GET /api/memory/decisions?limit=5
+      Show last 5 as small list items with action_type + inferred_preference
+    - Session stats: found/sent/pending/skipped from agent.sessionStats
+
+TEST:
+  With backend running, open /command
+  Manually trigger from Python:
+    asyncio.run(ws_manager.send('frontend', 'AGENT_STATUS', {
+      'agent_id': 'agent_1', 'status': 'running',
+      'current_action': 'searching LinkedIn', 'company': 'Stripe', 'role': 'Senior PM'
+    }))
+    asyncio.run(ws_manager.send('frontend', 'AGENT_BRIEFING', {
+      'agent_id': 'agent_1', 'phase': 'enrichment',
+      'message': 'I finished researching Stripe. Strong signals for API product experience. Shall I proceed?'
+    }))
+  Expected:
+    - Agent appears in roster with green dot
+    - Clicking agent shows briefing message in chat
+  Trigger APPROVAL_REQUEST - verify ApprovalCard renders in chat
+  Click Approve - verify WS message sent to backend (check terminal)
+
+=======================================
+STEP 15 - Dashboard UI
+=======================================
+FILES:
+  frontend/src/pages/Dashboard.jsx
+  frontend/src/components/dashboard/KPIBar.jsx
+  frontend/src/components/dashboard/AgentsTab.jsx
+  frontend/src/components/dashboard/JobsTab.jsx
+  frontend/src/components/dashboard/ContactsTab.jsx
+  frontend/src/components/dashboard/MemorySearch.jsx
+  frontend/src/components/dashboard/ReportsTab.jsx
+
+Dashboard.jsx:
+  - Full page layout
+  - KPIBar at top (always visible)
+  - Tab nav: Overview | Agents | Jobs | Contacts | Memory Search | Reports
+  - State: activeTab
+  - On mount: fetch /api/jobs/, /api/memory/contacts, /api/memory/preferences
+
+KPIBar.jsx:
+  - Props: kpis from useAgentStore
+  - Display as horizontal row of metric cards:
+    Jobs loaded | Enriched | Stories ready | Contacts found | Sent | Sessions run
+  - Each card: muted label above, large number below
+  - Updates live via WebSocket SESSION_UPDATE events
+
+AgentsTab.jsx:
+  - Live agent cards from useAgentStore
+  - Each card: name, role, status pill, current action, progress
+  - Buttons: Pause | Resume | Stop (call send() with correct WS commands)
+  - Expand card to see last 10 agent_log entries (fetch from /api/agents/{id}/log)
+
+JobsTab.jsx:
+  - Table: Company | Role | Status | Priority | Contacts found | Story | Last updated
+  - Status as colored pills
+  - Click row to expand: enrichment summary, story headline, contacts list
+  - Filter by status dropdown
+
+ContactsTab.jsx:
+  - Table: Name | Title | Company | Role | Score | Status | Date
+  - Sortable columns
+  - Filter by company, status
+  - Click row to see full profile context and message history
+
+MemorySearch.jsx:
+  - Search input with placeholder "Search your memory... e.g. 'times I skipped recruiters'"
+  - On submit: POST /api/memory/search {query}
+  - Results as cards:
+    - action_type badge (APPROVE/SKIP/EDIT in different colors)
+    - inferred_preference text (prominent)
+    - inferred_why text (secondary)
+    - company + role context
+    - timestamp
+
+ReportsTab.jsx:
+  - Button: Generate session summary (POST /api/reports/summary)
+  - Button: Export contacts CSV (GET /api/reports/contacts.csv)
+  - Button: Export outreach log CSV (GET /api/reports/outreach.csv)
+  - List of existing report files in /reports/ folder
+
+TEST:
+  Open http://localhost:5173/dashboard
+  KPI bar shows numbers (even if all zero)
+  Jobs tab shows loaded jobs
+  Memory Search: type 'recruiter' - verify results appear (requires Step 5 test to have run)
+  No console errors on any tab
+
+=======================================
+STEP 16 - LinkedIn agent (single instance)
+=======================================
+FILES:
+  backend/agents/linkedin_agent.py
+  backend/agents/message_agent.py
+  backend/agents/contact_agent.py
+
+backend/agents/message_agent.py:
+
+  from backend.core.claude_client import ask_json, ask
+  from backend.memory.vector_store import search
+
+  SCORE_SYSTEM = """Score a LinkedIn profile for job role relevance.
+  Return JSON: {"score": 7, "reason": "2 sentence explanation"}
+  score is integer 1-10. Return only JSON."""
+
+  DRAFT_SYSTEM = """Write a LinkedIn connection invite message.
+  Rules: max 300 characters, specific to this person, no filler phrases like
+  'I hope this finds you well' or 'I'd love to', reference something real about
+  them or their work, apply the tone preferences provided. Return only the message text."""
+
+  def score_contact(profile: dict, context: str) -> dict:
+    prompt = f"CONTEXT:\n{context[:3000]}\n\nPROFILE TO SCORE:\n{profile['name']} - {profile['title']}\n{profile.get('headline','')}\n{profile.get('summary','')[:500]}"
+    return ask_json(prompt, system=SCORE_SYSTEM)
+
+  def draft_message(profile: dict, context: str) -> str:
+    # 1. Search jobflow_messages for similar approved messages (style examples)
+    examples = search('jobflow_messages', f"{profile['title']} {profile.get('company','')}")
+    example_text = '\n'.join([f"Example: {r['text']}" for r in examples[:2]]) if examples else ''
+    prompt = f"CONTEXT:\n{context[:3000]}\n\nPERSON:\n{profile['name']} - {profile['title']} at {profile.get('company','')}\nHeadline: {profile.get('headline','')}\n\nSTYLE EXAMPLES FROM PAST APPROVED MESSAGES:\n{example_text}"
+    return ask(prompt, system=DRAFT_SYSTEM, max_tokens=200)
+
+backend/agents/contact_agent.py:
+
+  from selenium.webdriver.common.by import By
+  from selenium.webdriver.support.ui import WebDriverWait
+  from selenium.webdriver.support import expected_conditions as EC
+  import time, random
+
+  def send_invite(driver, linkedin_url: str, message: str) -> bool:
+    try:
+      driver.get(linkedin_url)
+      time.sleep(random.uniform(2, 4))
+      # Find and click Connect button
+      # Handle "More" dropdown if Connect not directly visible
+      # Click "Add a note"
+      # Find textarea, clear it, type message character by character with small delays
+      # Simulate human: time.sleep(random.uniform(0.05, 0.15)) between characters
+      # Click Send button
+      # Wait for confirmation element
+      time.sleep(random.uniform(3, 6))
+      return True
+    except Exception as e:
+      print(f"Send invite failed: {e}")
+      return False
+
+backend/agents/linkedin_agent.py:
+
+  import undetected_chromedriver as uc
+  from selenium.webdriver.common.by import By
+  import time, random, threading
+  from backend.memory.context_builder import build_agent_context
+  from backend.memory.database import log_agent_action, insert_contact, update_contact_status
+  from backend.memory.vector_store import embed
+  from backend.memory.decision_log import record_decision
+  from backend.agents.message_agent import score_contact, draft_message
+  from backend.agents.contact_agent import send_invite
+  from backend.websocket_manager import ws_manager
+  from backend.core.claude_client import ask
+  from backend.config import cfg
+  import uuid
+
+  BRIEFING_SYSTEM = """Generate a natural agent briefing message (3-5 sentences).
+  Include: role being worked on, one key signal found in enrichment data,
+  which preferences will be applied, what the agent plans to do next.
+  Sound like a helpful team member reporting in, not a robot."""
+
+  class LinkedInAgent:
+    def __init__(self, agent_id: str, job_id: int, session_id: int):
+      self.agent_id = agent_id
+      self.job_id = job_id
+      self.session_id = session_id
+      self.context = None
+      self.driver = None
+      self.stop_flag = threading.Event()
+      self.pause_flag = threading.Event()
+      self.approval_event = threading.Event()
+      self.approval_result = None  # 'approve' | 'edit' | 'skip'
+      self.approval_data = None    # contains final_message if approve/edit
+      self.stats = {'found': 0, 'sent': 0, 'skipped': 0}
+
+    def emit(self, event_type: str, payload: dict):
+      ws_manager.send_sync('frontend', event_type, {'agent_id': self.agent_id, **payload})
+
+    def log(self, action: str, detail: str, status: str = 'SUCCESS'):
+      log_agent_action(self.agent_id, self.job_id, self.session_id, action, detail, status)
+
+    def start(self):
+      try:
+        # 1. Load context
+        self.context = build_agent_context(self.job_id, self.session_id)
+        self.emit('AGENT_STATUS', {'status': 'running', 'current_action': 'loading context'})
+
+        # 2. Generate and send opening briefing
+        briefing = ask(f"Write a briefing for this agent. Context summary:\n{self.context[:2000]}", system=BRIEFING_SYSTEM)
+        self.emit('AGENT_BRIEFING', {'phase': 'starting', 'message': briefing})
+        self.log('START', 'Agent started, context loaded')
+
+        # 3. Launch Chrome
+        options = uc.ChromeOptions()
+        self.driver = uc.Chrome(options=options)
+        self.emit('AGENT_STATUS', {'status': 'running', 'current_action': 'Chrome launched'})
+
+        # 4. Navigate to LinkedIn
+        self.driver.get('https://www.linkedin.com')
+        time.sleep(3)
+        # Check if logged in - if not, pause and notify user
+        if 'feed' not in self.driver.current_url and 'login' in self.driver.current_url:
+          self.emit('AGENT_MESSAGE', {'message': 'I need you to log into LinkedIn in the Chrome window I opened. Tell me when done.'})
+          # Wait for user reply (handled by agent pool route_user_reply)
+          self.approval_event.wait(timeout=300)
+          self.approval_event.clear()
+
+        # 5. Search people
+        candidates = self.search_people()
+        self.emit('AGENT_MESSAGE', {'message': f'Found {len(candidates)} candidate profiles to evaluate. Scoring now.'})
+
+        # 6. Process each candidate
+        for candidate in candidates:
+          if self.stop_flag.is_set():
+            break
+          while self.pause_flag.is_set():
+            time.sleep(1)
+
+          profile = self.read_profile(candidate['linkedin_url'])
+          if not profile:
+            continue
+
+          scored = score_contact(profile, self.context)
+          if scored['score'] < cfg['agents']['relevance_min_score']:
+            self.log('SCORE_LOW', f"{profile['name']} scored {scored['score']} - skipping")
+            continue
+
+          self.stats['found'] += 1
+          message_draft = draft_message(profile, self.context)
+
+          # Insert contact as pending
+          contact_id = insert_contact({
+            'job_id': self.job_id, 'session_id': self.session_id,
+            'full_name': profile['name'], 'linkedin_url': profile['linkedin_url'],
+            'title': profile['title'], 'relevance_score': scored['score'],
+            'relevance_reason': scored['reason'], 'invite_message': message_draft,
+            'status': 'PENDING_APPROVAL', 'agent_id': self.agent_id,
+            'chroma_id': None
+          })
+
+          # Request approval
+          self.request_approval(contact_id, profile, scored, message_draft)
+
+        # 7. Session complete
+        self.emit('PHASE_COMPLETE', {'phase': 'networking', 'summary_stats': self.stats})
+        self.emit('AGENT_MESSAGE', {'message': f"Session complete. Found: {self.stats['found']}, Sent: {self.stats['sent']}, Skipped: {self.stats['skipped']}"})
+
+      except Exception as e:
+        self.emit('ERROR', {'error_type': 'AGENT_ERROR', 'message': str(e), 'recoverable': False})
+      finally:
+        if self.driver:
+          self.driver.quit()
+
+    def search_people(self) -> list[dict]:
+      # Build search URL for LinkedIn people search
+      # Use company name from context, filter: people, 2nd connections
+      # Navigate: https://www.linkedin.com/search/results/people/?keywords={company}&network=["S"]
+      # Extract profile cards: name, title, linkedin_url, mutual_connections count
+      # Return list of dicts, max cfg['agents']['contacts_per_company'] * 3
+      # (overshoot to account for scoring filtering)
+      return []
+
+    def read_profile(self, linkedin_url: str) -> dict | None:
+      try:
+        self.driver.get(linkedin_url)
+        time.sleep(random.uniform(2, 3))
+        self.emit('AGENT_STATUS', {'status': 'running', 'current_action': f'Reading profile'})
+        # Extract: name, title, headline, about (first 300 chars), top 3 experiences
+        # Return dict
+        return {}
+      except:
+        return None
+
+    def request_approval(self, contact_id: int, profile: dict, scored: dict, message_draft: str):
+      self.approval_event.clear()
+      self.approval_result = None
+
+      context_snapshot = {
+        'job_id': self.job_id, 'company': profile.get('company', ''),
+        'person_title': profile['title'], 'relevance_score': scored['score'],
+        'contact_id': contact_id
+      }
+
+      self.emit('APPROVAL_REQUEST', {
+        'contact_id': contact_id,
+        'person': {'name': profile['name'], 'title': profile['title'],
+                   'linkedin_url': profile['linkedin_url'],
+                   'mutual_connections': profile.get('mutual_connections', 0)},
+        'message_draft': message_draft,
+        'relevance': scored['score'],
+        'reason': scored['reason'],
+        'session_id': self.session_id,
+        'context_snapshot': context_snapshot
+      })
+      self.emit('AGENT_STATUS', {'status': 'waiting', 'current_action': 'awaiting approval'})
+
+      # Block until user decides (5 min timeout)
+      self.approval_event.wait(timeout=300)
+
+      if self.approval_result in ('approve', 'edit'):
+        final_message = self.approval_data.get('final_message', message_draft)
+        success = send_invite(self.driver, profile['linkedin_url'], final_message)
+        if success:
+          update_contact_status(contact_id, 'SENT')
+          chroma_id = str(uuid.uuid4())
+          embed('jobflow_messages', chroma_id, final_message,
+                {'job_id': self.job_id, 'title': profile['title'], 'company': profile.get('company','')})
+          self.stats['sent'] += 1
+          self.log('SENT', f"Sent to {profile['name']}")
+      elif self.approval_result == 'skip':
+        self.stats['skipped'] += 1
+        self.log('SKIPPED', f"Skipped {profile['name']}")
+
+      self.emit('AGENT_STATUS', {'status': 'running', 'current_action': 'continuing'})
+
+TEST (no sending - just search and draft):
+  # Manually instantiate one agent and run up to request_approval
+  python -c "
+  from backend.agents.linkedin_agent import LinkedInAgent
+  agent = LinkedInAgent('agent_1', job_id=1, session_id=1)
+  # Run start() - it will pause at request_approval waiting for WS event
+  # Check: frontend receives APPROVAL_REQUEST event
+  # Check: contacts table has PENDING_APPROVAL row
+  # Check: message_draft looks personalized and specific
+  "
+
+=======================================
+STEP 17 - Agent pool (parallel orchestration)
+=======================================
+FILES: backend/workers/agent_pool.py, backend/routers/agents_router.py
+
+backend/workers/agent_pool.py:
+
+  import threading
+  from backend.agents.linkedin_agent import LinkedInAgent
+  from backend.memory.database import create_session, end_session
+  from backend.websocket_manager import ws_manager
+  from backend.config import cfg
+
+  class AgentPool:
+    def __init__(self):
+      self.agents: dict[str, LinkedInAgent] = {}
+      self.threads: dict[str, threading.Thread] = {}
+      self.current_session_id: int = None
+
+    def start_session(self, job_ids: list[int], standing_instructions: str = '') -> int:
+      session_id = create_session(standing_instructions)
+      self.current_session_id = session_id
+      max_agents = cfg['agents']['max_parallel_agents']
+      for i, job_id in enumerate(job_ids[:max_agents]):
+        agent_id = f'agent_{i+1}'
+        agent = LinkedInAgent(agent_id, job_id, session_id)
+        if standing_instructions:
+          # Inject standing instructions into agent context before start
+          agent.standing_instructions = standing_instructions
+        self.agents[agent_id] = agent
+        t = threading.Thread(target=agent.start, daemon=True)
+        self.threads[agent_id] = t
+        t.start()
+      return session_id
+
+    def notify_agent(self, agent_id: str, action: str, data: dict):
+      agent = self.agents.get(agent_id)
+      if agent:
+        agent.approval_result = action
+        agent.approval_data = data
+        agent.approval_event.set()
+
+    def route_user_reply(self, agent_id: str, message: str):
+      # Set a reply message on the agent so it can respond
+      agent = self.agents.get(agent_id)
+      if agent:
+        agent.user_reply = message
+        agent.approval_event.set()  # Unblock if waiting for login confirmation
+
+    def broadcast_instruction(self, instruction: str):
+      for agent in self.agents.values():
+        agent.emit('AGENT_MESSAGE', {'message': f'Standing instruction received: {instruction}. Applying now.'})
+        agent.standing_instructions = getattr(agent, 'standing_instructions', '') + '\n' + instruction
+
+    def apply_standing_instruction(self, instruction: str, scope: str):
+      if scope == 'ALL':
+        self.broadcast_instruction(instruction)
+      else:
+        self.route_user_reply(scope, instruction)
+
+    def pause_agent(self, agent_id: str):
+      agent = self.agents.get(agent_id)
+      if agent:
+        agent.pause_flag.set()
+        agent.emit('AGENT_STATUS', {'status': 'paused', 'current_action': 'paused by user'})
+
+    def resume_agent(self, agent_id: str):
+      agent = self.agents.get(agent_id)
+      if agent:
+        agent.pause_flag.clear()
+        agent.emit('AGENT_STATUS', {'status': 'running', 'current_action': 'resumed'})
+
+    def stop_agent(self, agent_id: str):
+      agent = self.agents.get(agent_id)
+      if agent:
+        agent.stop_flag.set()
+        agent.approval_event.set()  # Unblock if waiting
+
+    def get_all_status(self) -> list[dict]:
+      return [
+        {'agent_id': aid, 'status': a.stats, 'job_id': a.job_id}
+        for aid, a in self.agents.items()
+      ]
+
+    def on_all_complete(self):
+      # Called when all agent threads finish
+      # Import here to avoid circular import
+      from backend.workers.preference_updater import run_preference_update
+      if self.current_session_id:
+        run_preference_update(self.current_session_id)
+
+  pool = AgentPool()
+
+backend/routers/agents_router.py:
+
+  from fastapi import APIRouter
+  from backend.workers.agent_pool import pool
+
+  router = APIRouter(prefix='/api/agents', tags=['agents'])
+
+  @router.post('/start')
+  async def start(body: dict):
+    session_id = pool.start_session(body['job_ids'], body.get('standing_instructions', ''))
+    return {'session_id': session_id, 'agents_started': len(body['job_ids'])}
+
+  @router.post('/{agent_id}/pause')
+  async def pause(agent_id: str):
+    pool.pause_agent(agent_id)
+    return {'status': 'paused'}
+
+  @router.post('/{agent_id}/resume')
+  async def resume(agent_id: str):
+    pool.resume_agent(agent_id)
+    return {'status': 'resumed'}
+
+  @router.post('/{agent_id}/stop')
+  async def stop(agent_id: str):
+    pool.stop_agent(agent_id)
+    return {'status': 'stopped'}
+
+  @router.get('/status')
+  async def status():
+    return pool.get_all_status()
+
+TEST:
+  POST http://localhost:8000/api/agents/start
+  Body: {"job_ids": [1, 2], "standing_instructions": "focus on PMs and engineers, skip recruiters"}
+  Watch Command Center - two agents should appear with green dots
+  Watch agent_log table - both agents logging actions simultaneously
+  Verify approvals for agent_1 don't unblock agent_2
+  Verify pausing agent_1 doesn't affect agent_2
+
+=======================================
+STEP 18 - Preference updater + reports router
+=======================================
+FILES: backend/workers/preference_updater.py, backend/routers/reports.py
+
+backend/workers/preference_updater.py:
+
+  from backend.core.claude_client import ask_json
+  from backend.memory.database import get_decisions_by_session, upsert_preference, end_session
+  from backend.websocket_manager import ws_manager
+  import json
+
+  UPDATE_SYSTEM = """Analyze job networking session decisions to extract preference rules.
+  Given a list of decisions and their inferred reasons, identify clear durable patterns.
+  Return JSON array:
+  [
+    {"category": "CONTACT_TARGETING", "rule": "prefers Senior ICs over recruiters", "confidence": 0.9, "evidence_count": 4},
+    {"category": "TONE", "rule": "prefers direct messages under 60 words", "confidence": 0.8, "evidence_count": 3}
+  ]
+  Categories: CONTACT_TARGETING | TONE | THRESHOLD | TIMING | COMPANY_TYPE
+  Return only JSON array. Empty array if no clear patterns."""
+
+  def run_preference_update(session_id: int):
+    decisions = get_decisions_by_session(session_id)
+    if not decisions:
+      end_session(session_id, {})
+      return
+
+    summary = 'SESSION DECISIONS:\n' + '\n'.join([
+      f"- {d['action_type']}: {d['inferred_preference']}" 
+      for d in decisions if d.get('inferred_preference')
+    ])
+
+    preferences = ask_json(summary, system=UPDATE_SYSTEM)
+    updated = 0
+    if isinstance(preferences, list):
+      for pref in preferences:
+        upsert_preference(
+          pref['category'], pref['rule'],
+          pref.get('evidence_count', 1), pref.get('confidence', 0.5)
+        )
+        updated += 1
+
+    stats = {
+      'contacts_found': sum(1 for d in decisions if d['action_type'] in ('APPROVE', 'EDIT_APPROVE', 'SKIP')),
+      'messages_sent': sum(1 for d in decisions if d['action_type'] in ('APPROVE', 'EDIT_APPROVE')),
+      'preferences_updated': updated
+    }
+    end_session(session_id, stats)
+
+    ws_manager.send_sync('frontend', 'SESSION_COMPLETE', {
+      'agent_id': 'system',
+      'preferences_updated': updated,
+      'summary': f'Session complete. {updated} preferences learned/updated.'
+    })
+
+backend/routers/reports.py:
+
+  from fastapi import APIRouter
+  from fastapi.responses import FileResponse, PlainTextResponse
+  from backend.memory.database import get_all_jobs, get_contacts_by_job, get_session
+  from backend.config import cfg
+  from pathlib import Path
+  import csv, datetime, io
+
+  router = APIRouter(prefix='/api/reports', tags=['reports'])
+
+  @router.post('/summary')
+  async def generate_summary():
+    jobs = get_all_jobs()
+    all_contacts = []
+    for job in jobs:
+      contacts = get_contacts_by_job(job['id'])
+      all_contacts.extend(contacts)
+    sent = [c for c in all_contacts if c['status'] == 'SENT']
+    lines = [
+      f"# JobFlow OS Run Summary - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+      f"Total roles: {len(jobs)}",
+      f"Total contacts found: {len(all_contacts)}",
+      f"Messages sent: {len(sent)}",
+      "",
+      "## Roles worked:",
+    ]
+    for job in jobs:
+      lines.append(f"- {job['company']} / {job['role_title']} — status: {job['status']}")
+    report_path = Path(cfg['paths']['reports']) / f"summary_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.md"
+    report_path.parent.mkdir(exist_ok=True)
+    report_path.write_text('\n'.join(lines))
+    return {'file': str(report_path), 'summary': lines}
+
+  @router.get('/contacts.csv')
+  async def contacts_csv():
+    jobs = get_all_jobs()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Name', 'Title', 'Company', 'Role', 'LinkedIn', 'Score', 'Status', 'Message', 'Contacted'])
+    for job in jobs:
+      for c in get_contacts_by_job(job['id']):
+        writer.writerow([c['full_name'], c['title'], job['company'], job['role_title'],
+                         c['linkedin_url'], c['relevance_score'], c['status'],
+                         c.get('invite_message',''), c.get('contacted_at','')])
+    path = Path(cfg['paths']['reports']) / 'contacts.csv'
+    path.write_text(output.getvalue())
+    return FileResponse(path, filename='contacts.csv')
+
+FINAL TEST - full end-to-end:
+  1. POST /api/jobs/load  (Excel with 3 roles)
+  2. python -c "from backend.agents.enrichment_agent import enrich_all_pending; enrich_all_pending()"
+  3. python -c "from backend.agents.story_agent import generate_all_stories; generate_all_stories()"
+  4. Open http://localhost:5173/command
+  5. POST /api/agents/start {"job_ids": [1, 2], "standing_instructions": "skip recruiters, focus on PMs"}
+  6. Watch agents brief you in Command Center
+  7. Approve one message, skip one message, edit+approve one message
+  8. Let session complete
+  9. Check /reports/ for summary file
+  10. Open /dashboard - verify Memory Search returns results for 'recruiter'
+  11. Check preferences table - verify rules extracted
+  12. Run again - verify agents mention applied preferences in their briefing
+
+=======================================
+REQUIREMENTS FILES
+=======================================
+backend/requirements.txt:
+  fastapi>=0.111.0
+  uvicorn[standard]>=0.29.0
+  websockets>=12.0
+  python-multipart>=0.0.9
+  anthropic>=0.25.0
+  pandas>=2.0.0
+  openpyxl>=3.1.0
+  pyyaml>=6.0.0
+  python-dotenv>=1.0.0
+  chromadb>=0.4.0
+  requests>=2.31.0
+  beautifulsoup4>=4.12.0
+  duckduckgo-search>=3.9.0
+  lxml>=4.9.0
+  selenium>=4.15.0
+  webdriver-manager>=4.0.0
+  undetected-chromedriver>=3.5.0
+  rich>=13.0.0
+
+HOW TO RUN:
+  Terminal 1 (backend):
+    cd jobflow_os/backend
+    python -m venv venv && source venv/bin/activate
+    pip install -r requirements.txt
+    cd ..
+    uvicorn backend.main:app --host localhost --port 8000 --reload
+
+  Terminal 2 (frontend):
+    cd jobflow_os/frontend
+    npm install
+    npm run dev
+
+  Before running agents:
+    1. Set claude.api_key in config.yaml
+    2. Set linkedin.profile_url in config.yaml
+    3. Create profile/master_profile.md with your full background
+    4. Create profile/tone_guide.md with your tone preferences
+    5. Log into LinkedIn in Chrome before starting agents
+    6. Set agents.max_invites_per_day to 20 max - protect your account
+
+=======================================
+END OF BUILD INSTRUCTIONS
+=======================================

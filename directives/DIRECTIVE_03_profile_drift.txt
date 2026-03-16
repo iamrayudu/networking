@@ -1,0 +1,271 @@
+DIRECTIVE 03 — FIX PROFILE DRIFT
+==================================
+Problem being solved: Sudheer's profile is loaded once at context build,
+but by step 4 or 5 the agent's Claude calls have drifted away from his voice.
+The tone_guide gets diluted because it sits deep in a long prompt and Claude
+deprioritises it. Messages stop sounding like Sudheer and start sounding generic.
+
+Fix: re-anchor the voice at every Claude call that produces user-facing text.
+Not by reloading the full profile — by injecting a tight VOICE ANCHOR
+(10-15 lines) as the FIRST thing in every system prompt that writes words
+Sudheer will send or review.
+
+Do NOT rebuild anything. Surgical additions only.
+
+═══════════════════════════════════════════════
+CHANGE 1 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/memory/voice_anchor.py
+
+Tell Claude Code:
+  Create this file. It builds a short, sharp voice anchor string
+  from Sudheer's tone_guide and learned preferences.
+  This string gets prepended to every system prompt that writes
+  text Sudheer will send or review.
+
+  ANCHOR_INTRO = "SUDHEER'S VOICE — READ THIS FIRST:"
+
+  def build_voice_anchor(ctx: dict) -> str:
+      """
+      Builds a 10-15 line voice anchor from ctx.
+      Pulls from ctx["permanent"]["tone_guide"] and ctx["permanent"]["preferences"].
+
+      Structure of the anchor — hardcode this structure, fill from ctx:
+
+      SUDHEER'S VOICE — READ THIS FIRST:
+      He is a full-stack developer and AI/automation builder. Not a job seeker. A builder.
+      He writes like he talks: direct, specific, no filler.
+      He never says: [top 5 banned phrases extracted from tone_guide]
+      He sounds like: [one example sentence from tone_guide if present, else omit]
+      His current strongest angle: [fit_angle from ctx["current_score"] if set, else omit]
+      Active preferences this session:
+      [top 3 rules from ctx["permanent"]["preferences"] — one line each]
+
+      Rules for extraction:
+      - banned phrases: find lines starting with "-" under "WHAT I NEVER SAY" in tone_guide
+        Take the first 5. Format as comma-separated inline list.
+      - example sentence: find first line under "Example of an opening I love" in tone_guide
+        If not found: omit the line entirely.
+      - preferences: split preference_summary by newline, take first 3 non-empty lines.
+        If no preferences yet: omit the preferences section entirely.
+      - fit_angle: only include if ctx["current_score"]["fit_angle"] is not None.
+
+      Keep the anchor under 200 words. If it exceeds 200 words: trim preferences to 2,
+      trim banned phrases to 3. Voice anchor must be SHORT — it is repeated often.
+
+      Returns: formatted string
+      """
+
+  def prepend_voice_anchor(ctx: dict, system_prompt: str) -> str:
+      """
+      Prepends the voice anchor to an existing system prompt.
+      Adds a blank line between anchor and the rest of the prompt.
+
+      Format:
+        {voice_anchor}
+
+        {original system_prompt}
+
+      Returns: combined string
+      """
+
+═══════════════════════════════════════════════
+CHANGE 2 — MODIFY EXISTING FILE
+═══════════════════════════════════════════════
+File to modify: backend/skills/skill_loader.py
+(created in Directive 02)
+
+Tell Claude Code:
+  Add one new function to skill_loader.py.
+  Do NOT change the existing functions.
+
+  def inject_skill_with_voice(skill_name: str, ctx: dict) -> str:
+      """
+      Loads the micro-skill AND prepends the voice anchor.
+      Use this instead of inject_skill_as_system() for any call
+      that produces text Sudheer will read or send.
+
+      Order:
+        1. voice_anchor (from voice_anchor.py)
+        2. blank line
+        3. micro-skill text
+        4. blank line
+
+      Import: from backend.memory.voice_anchor import prepend_voice_anchor
+
+      Returns: combined system prompt string
+      """
+
+═══════════════════════════════════════════════
+CHANGE 3 — MODIFY EXISTING FILES
+═══════════════════════════════════════════════
+Tell Claude Code: replace inject_skill_as_system() with inject_skill_with_voice()
+in exactly these locations. Nowhere else — only calls that produce
+text Sudheer will read or send.
+
+IN backend/agents/message_agent.py:
+  score_contact() call:
+    KEEP inject_skill_as_system("score_contact")
+    Scoring does not produce user-facing text — no voice anchor needed.
+
+  draft_message() call:
+    REPLACE inject_skill_as_system("draft_message")
+    WITH    inject_skill_with_voice("draft_message", ctx)
+    Drafting produces the message Sudheer reviews — voice anchor required.
+
+IN backend/agents/story_agent.py:
+  generate_story() call:
+    REPLACE inject_skill_as_system("story_write")
+    WITH    inject_skill_with_voice("story_write", ctx)
+    Story is user-facing — voice anchor required.
+
+IN backend/agents/linkedin_agent.py:
+  Opening briefing call (the short ask() that generates the agent's opening message):
+    This produces text Sudheer reads in the Command Center.
+    REPLACE current system string with:
+      system = inject_skill_with_voice("draft_message", ctx)
+    Wait — this is a briefing not a message draft. Use inline system instead:
+      system = prepend_voice_anchor(ctx,
+        "Write a 2-3 sentence briefing about what you found and what you plan to do next.
+         Be specific. Name the role and one concrete finding. Do not pad.")
+    Import prepend_voice_anchor from voice_anchor.py
+
+  Approval request message display (the message text shown in the approval card):
+    This is already handled by draft_message — no change needed here.
+
+IN backend/memory/decision_log.py:
+  record_decision() inference call:
+    KEEP inject_skill_as_system("preference_infer")
+    This is internal reasoning — not user-facing — no voice anchor needed.
+
+IN backend/agents/enrichment_agent.py:
+  enrich_job() synthesis call:
+    KEEP inject_skill_as_system("enrichment_synthesise")
+    Not user-facing — no voice anchor needed.
+
+═══════════════════════════════════════════════
+CHANGE 4 — ADD DRIFT DETECTION
+═══════════════════════════════════════════════
+File to modify: backend/agents/message_agent.py
+
+Tell Claude Code:
+  Add a post-draft check function. Call it immediately after draft_message()
+  returns. If the draft fails the check, regenerate once with an explicit
+  correction instruction. Do not regenerate more than once.
+
+  BANNED_PHRASES = [
+      "i hope this finds you",
+      "i hope this message finds you",
+      "i'd love to",
+      "i would love to",
+      "i came across your profile",
+      "i was impressed",
+      "i'm passionate",
+      "excited to connect",
+      "i'd be honored",
+      "looking forward to hearing",
+      "exploring new opportunities",
+      "open to new challenges",
+      "results-driven",
+      "proven track record",
+  ]
+
+  def check_voice_drift(draft: str) -> list[str]:
+      """
+      Checks a message draft for banned phrases.
+      Returns list of banned phrases found (empty list = pass).
+      Case-insensitive check.
+      """
+
+  def fix_drift(draft: str, violations: list[str], ctx: dict) -> str:
+      """
+      Called when check_voice_drift returns violations.
+      Makes ONE correction Claude call:
+        system = prepend_voice_anchor(ctx,
+          "Rewrite this message removing these exact phrases: {violations}.
+           Keep the same hook and structure. Keep under {target_length} chars.
+           Return only the rewritten message text.")
+        prompt = draft
+      Returns the corrected draft string.
+      Called MAXIMUM ONCE per draft — if violations persist after one fix,
+      log a warning and return the fixed draft anyway.
+      """
+
+  In draft_message(), after receiving result from ask_json():
+    For draft_a:
+      violations = check_voice_drift(result["draft_a"])
+      if violations:
+          result["draft_a"] = fix_drift(result["draft_a"], violations, ctx)
+          result["drift_detected"] = True
+          result["violations_found"] = violations
+    For draft_b (same pattern):
+      violations = check_voice_drift(result["draft_b"])
+      if violations:
+          result["draft_b"] = fix_drift(result["draft_b"], violations, ctx)
+
+  Add "drift_detected": False and "violations_found": [] as defaults in result dict.
+
+═══════════════════════════════════════════════
+TEST — VERIFY ALL CHANGES WORK
+═══════════════════════════════════════════════
+Test 1 — voice anchor builds:
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  from backend.memory.voice_anchor import build_voice_anchor
+  ctx = build_initial_context(job_id=1, session_id=1)
+  anchor = build_voice_anchor(ctx)
+  print(anchor)
+  print('---')
+  print('word count:', len(anchor.split()))
+  print('has NEVER SAY:', 'never' in anchor.lower())
+  "
+  Expected: prints a short anchor, word count under 200, has never say section
+
+Test 2 — voice anchor prepends correctly:
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  from backend.memory.voice_anchor import prepend_voice_anchor
+  ctx = build_initial_context(job_id=1, session_id=1)
+  combined = prepend_voice_anchor(ctx, 'ORIGINAL SYSTEM PROMPT HERE')
+  print('anchor first:', combined.startswith('SUDHEER'))
+  print('original preserved:', 'ORIGINAL SYSTEM PROMPT HERE' in combined)
+  "
+  Expected: both True
+
+Test 3 — drift detection catches banned phrases:
+  python -c "
+  from backend.agents.message_agent import check_voice_drift
+  clean = 'Saw your AI tooling work at Stripe. Building automation systems here. Worth connecting.'
+  dirty = 'I hope this finds you well! I came across your profile and I would love to connect.'
+  print('clean violations:', check_voice_drift(clean))
+  print('dirty violations:', check_voice_drift(dirty))
+  "
+  Expected: clean = [], dirty = list with 2+ phrases
+
+Test 4 — full draft_message returns no violations:
+  python -c "
+  from backend.memory.context_object import build_initial_context
+  from backend.agents.message_agent import draft_message
+  ctx = build_initial_context(job_id=1, session_id=1)
+  ctx['current_person']['name'] = 'Sarah Kim'
+  ctx['current_person']['title'] = 'Senior PM, Payments'
+  ctx['current_person']['headline'] = 'Building AI-powered infra at Stripe'
+  ctx['current_person']['mutual_connections'] = 2
+  ctx['current_score']['score'] = 8
+  ctx['current_score']['reason'] = 'Strong match on AI/automation'
+  ctx['current_score']['fit_angle'] = 'AI/automation builder'
+  ctx['current_score']['hook_source'] = 'ai_signal'
+  result = draft_message(ctx)
+  print('drift_detected:', result.get('drift_detected', False))
+  print('draft_a:', result['draft_a'])
+  "
+  Expected: drift_detected False, message sounds like Sudheer
+
+═══════════════════════════════════════════════
+END OF DIRECTIVE 03
+═══════════════════════════════════════════════
+Files created:    backend/memory/voice_anchor.py
+Files modified:   backend/skills/skill_loader.py  (one new function)
+                  backend/agents/message_agent.py  (voice anchor + drift detection)
+                  backend/agents/story_agent.py    (voice anchor on story write)
+                  backend/agents/linkedin_agent.py (voice anchor on briefings)

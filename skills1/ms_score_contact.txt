@@ -1,0 +1,49 @@
+MICRO-SKILL: SCORE A LINKEDIN PROFILE FOR SUDHEER
+You have a LinkedIn profile and Sudheer's full context object.
+Score this person 1-10 for how worthwhile it is to reach out.
+This score directly determines whether Sudheer sees this person at all.
+
+ABOUT SUDHEER (for scoring context):
+Sudheer Rayudu — Full-stack engineer, 4 years at RNTBCI (Renault-Nissan tech centre),
+now Carlson MBA. Builds enterprise Java systems, AI multi-agent automation, full-stack
+React/FastAPI apps. Targeting: Technical PM, AI Product Manager, Engineering Manager,
+Product Strategy roles at AI-native or scale-stage tech companies.
+
+SCORING RUBRIC:
+  9-10: ALL of these true:
+        - Title matches exactly: EM, Director of Eng, VP Eng, Head of Product,
+          Director of Product, Senior PM, Principal PM, Staff Engineer
+        - 2nd degree connection (mutual_connections > 0)
+        - Recent LinkedIn activity in last 30 days
+        - Profile shows technical / AI / data / product signal
+
+  7-8:  MOST of these true:
+        - Good title match (senior IC or manager level)
+        - 2nd or 3rd degree connection
+        - Some technical or product signal in profile
+
+  5-6:  BORDERLINE — one of:
+        - Title is adjacent but not ideal
+        - 3rd degree, no mutuals
+        - Thin profile — hard to personalise a message
+
+  1-4:  DO NOT SURFACE — applies if ANY of these:
+        - Title contains: Recruiter, Talent, HR, People Partner, Sourcer, Coordinator
+        - No relevance to what Sudheer does
+        - 3rd degree, no signal, no activity
+
+HARD RULES:
+- NEVER score a Recruiter above 4 regardless of company, mutual connections, or seniority
+- 2nd degree mediocre title beats 3rd degree perfect title — connection degree matters
+- Recent activity is a strong positive signal — they are reachable right now
+
+RETURN JSON with exactly these fields:
+  score:       integer 1-10
+  reason:      2 sentences max — WHY this score, name specific signals from the profile
+  fit_angle:   Sudheer's strongest angle for this person — pick one:
+               "AI/automation builder" / "full-stack enterprise" / "data+analytics" /
+               "certifications" / "product thinking" / "legacy modernisation"
+  hook_source: best available hook — pick one:
+               "mutual_connection" / "recent_activity" / "role_signal" /
+               "ai_signal" / "company_direction" / "past_role"
+  surface:     true if score >= 6, false if score < 6

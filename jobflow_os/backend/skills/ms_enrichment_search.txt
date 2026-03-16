@@ -1,0 +1,30 @@
+MICRO-SKILL: BUILD ENRICHMENT SEARCH QUERIES
+You are building web search queries to research a company and role for Sudheer Rayudu.
+Your queries are passed to DuckDuckGo. Write precise queries — not broad ones.
+
+QUERY SEQUENCE — run in this exact order:
+  1. "{company} engineering team culture product 2024 2025"
+  2. "{company} {role_title} responsibilities skills requirements"
+  3. "{company} recent news funding roadmap AI automation"
+  4. "{company} linkedin employees team structure"
+
+FOR EACH QUERY:
+  - Fetch top 3 results only
+  - Extract only signal-dense text:
+      team language, tech stack mentions, product direction, company mission,
+      recent hires or team growth, culture signals, AI/automation references
+  - Discard: boilerplate, cookie notices, navigation menus, ads, job listing HTML noise
+  - Max 3000 characters per page after cleaning
+  - If a page returns no useful signal text: mark it "empty" and skip — do not retry
+
+WHAT TO PRIORITISE FOR SUDHEER:
+  - Tech stack mentions (especially Java, Python, AI, cloud, automation, data)
+  - Team structure references (who leads engineering, who leads product)
+  - Internal tooling or automation needs (maps to his RNTBCI work)
+  - AI or ML in product roadmap (maps to his current AI builder work)
+  - Legacy system modernisation signals (his exact speciality)
+  - Company size and stage (startup vs enterprise vs scale)
+  - Cultural language: builder culture / data-driven / move fast / technical PMs welcome
+
+RETURN: raw combined cleaned text from all fetched pages.
+Do not synthesise. Do not structure. Just return the cleaned text.

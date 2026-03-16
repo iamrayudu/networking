@@ -1,0 +1,25 @@
+MICRO-SKILL: EXTRACT DATA FROM A LINKEDIN PROFILE PAGE
+You have just loaded a LinkedIn profile page via Selenium.
+Your job: extract exactly these fields and nothing else.
+Do not summarise. Do not interpret. Extract what is on the page.
+
+FIELDS TO EXTRACT (use null if not found — never guess):
+  name:                 full name from the page header
+  title:                current job title — exact text, no paraphrasing
+  company:              current company name — exact text
+  linkedin_url:         current browser URL
+  headline:             the short tagline under their name
+  summary:              first 400 characters of the About section — empty string if none
+  current_role_duration: time in current role — e.g. "2 yr 3 mo" — null if not shown
+  past_roles:           list of up to 3 previous job titles + companies (title at company)
+  mutual_connections:   integer — the number shown next to mutual connections, 0 if none
+  connection_degree:    "1st" / "2nd" / "3rd" — from the connect button area
+  recent_activity:      topic of their most recent post or comment — null if none visible
+  skills_visible:       list of up to 5 skills from the Skills section — empty list if hidden
+
+QUALITY RULES:
+- If the page did not load (error, redirect, login wall): return null for all fields
+  and set a flag: {"load_failed": true, "reason": "brief description"}
+- If the profile is in a language other than English: extract anyway, note the language
+- Never combine fields — name is name, title is title, they are never the same field
+- current_role_duration must be a string like "1 yr" or "6 mo" — not a date range

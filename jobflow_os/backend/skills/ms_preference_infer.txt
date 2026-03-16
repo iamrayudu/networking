@@ -1,0 +1,36 @@
+MICRO-SKILL: INFER WHY SUDHEER MADE THIS DECISION
+You have one decision: approve, edit_approve, or skip.
+You have the full context of what the agent showed him when he decided.
+Infer WHY and extract a durable preference rule future agents apply automatically.
+
+ABOUT SUDHEER:
+High standards. Precise about who is worth contacting. Skips recruiters always.
+Prefers 2nd degree. Wants Engineering Managers and Senior ICs. Edits messages
+that are too long, too generic, or contain filler language. Approves messages
+that are specific, direct, and under 200 characters for senior people.
+
+BAD inferred_why: "User preferred this contact" / "User made edits to improve the message"
+GOOD inferred_why: "Sudheer approved because the person is a 2nd degree Engineering Manager
+                    with AI signal in their headline — matches his pattern of targeting
+                    technical leads over non-technical managers at product companies"
+GOOD inferred_why: "Sudheer edited to remove 'I hope this finds you well' and shorten from
+                    240 to 160 chars — consistent with his pattern of preferring ultra-short
+                    messages to Director-level contacts"
+
+BAD inferred_preference: "User prefers better messages"
+GOOD inferred_preference: "For Director-level contacts, target messages under 170 characters"
+GOOD inferred_preference: "Lead with mutual connection hook when available — approved rate 100%"
+
+CONFIDENCE:
+  5 — fits a pattern seen multiple times
+  4 — strong signal, first or second time
+  3 — moderate, could be situational
+  2 — weak, hard to generalise
+  1 — no clear signal, log but do not apply
+
+RETURN JSON:
+  inferred_why:        string — 1-2 sentences, specific, names the signals
+  inferred_preference: string — one actionable rule agents can follow
+  confidence:          integer 1-5
+  category:            "CONTACT_TARGETING" / "MESSAGE_TONE" /
+                       "MESSAGE_STRUCTURE" / "RELEVANCE_THRESHOLD" / "COMPANY_CONTEXT"

@@ -1,0 +1,55 @@
+MICRO-SKILL: SYNTHESISE ENRICHMENT DATA INTO STRUCTURED INTELLIGENCE
+You have raw web text from 4 searches about one company and role.
+Your job: extract only what is useful for Sudheer's outreach and story generation.
+Do not fabricate. If data is not in the raw text: use "not found". Never guess.
+
+ABOUT SUDHEER (to calibrate fit indicators):
+Full-stack engineer. 4 years building enterprise Java systems at RNTBCI (Renault-Nissan
+tech centre) — legacy modernisation, microservices, OKTA auth, internal tooling for
+Nissan/Renault/Mitsubishi operations. Now Carlson STEM MBA. Building multi-agent AI
+systems with Claude API. Targeting: Technical PM, AI Product, Engineering Manager.
+
+RETURN JSON with exactly these fields — no extras, no omissions, no null values:
+
+  company_summary:
+    2-3 sentences. What they do, trajectory, what they care about.
+    No filler. Focus on direction and product signals.
+
+  team_info:
+    Relevant team for this role. Size if found. Who leads it. Recent hires.
+    Use "not found" if nothing in the raw text.
+
+  tech_stack:
+    List of technologies actually mentioned. [] if none found. Never infer.
+
+  role_signals:
+    List of skills and keywords from job description language. [] if nothing found.
+
+  culture_signals:
+    List only if explicitly stated — do NOT infer. [] if nothing stated.
+
+  linkedin_company_url:
+    Full URL if found. "not found" if not present.
+
+  fit_indicators:
+    List of 3-5 specific connections between Sudheer's background and this role.
+    Each must name a specific Sudheer skill AND a specific signal from the raw text.
+    BAD: "Sudheer has relevant technical experience"
+    GOOD: "Role requires internal automation tooling — Sudheer built billing, attendance,
+           and design approval systems at RNTBCI used daily across Nissan/Renault org"
+    GOOD: "Company runs Java backend — Sudheer has 4 years Java/Spring Boot production experience"
+    GOOD: "Job description emphasises AI product integration — Sudheer builds multi-agent
+           AI systems with Claude API in production right now"
+    [] if enrichment confidence is LOW and no fit can be specifically evidenced.
+
+  contact_targets:
+    List of 2-3 ideal contact types ranked by priority.
+    Each: {"title": "...", "function": "...", "reason": "..."}
+    Priority 1: person who manages or works alongside this role
+    Priority 2: senior IC doing similar work
+    Priority 3: recruiter ONLY if nothing else found — never first choice
+
+  enrichment_confidence:
+    "HIGH"   — found real team data, role signals, and specific fit indicators
+    "MEDIUM" — found company data but thin on role specifics
+    "LOW"    — sparse results, mostly generic info

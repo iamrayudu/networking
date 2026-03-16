@@ -1,0 +1,259 @@
+DIRECTIVE 05 — OUTPUT STANDARDS PER STEP
+==========================================
+Problem being solved: each tool call hands off data to the next step
+with no guaranteed shape. A missing field in profile extraction causes
+a KeyError in scoring. A None score causes a crash in message drafting.
+An incomplete enrichment produces a story with no fit indicators.
+Errors propagate silently until they cause garbage output or a crash.
+
+Fix: define an exact output schema for every step. Validate before handoff.
+If validation fails: fill with safe defaults, log the gap, continue.
+Never crash on missing data — but always know when data is incomplete.
+
+Do NOT rebuild any existing file. Add the schema and validation layer.
+
+═══════════════════════════════════════════════
+CHANGE 1 — CREATE NEW FILE
+═══════════════════════════════════════════════
+File to create: backend/memory/output_schemas.py
+
+Tell Claude Code:
+  Create this file. It defines the expected output shape for every
+  major step and a validate() function that enforces it.
+
+  Each schema is a dict of {field_name: (type, default_value, required)}.
+  required=True means log a warning if missing.
+  required=False means fill with default silently.
+
+  ── SCHEMA 1: profile extraction output ──
+  PROFILE_SCHEMA = {
+      "name":                 (str,   "",     True),
+      "title":                (str,   "",     True),
+      "company":              (str,   "",     False),
+      "linkedin_url":         (str,   "",     True),
+      "headline":             (str,   "",     False),
+      "summary":              (str,   "",     False),
+      "current_role_duration":(str,   None,   False),
+      "past_roles":           (list,  [],     False),
+      "mutual_connections":   (int,   0,      False),
+      "connection_degree":    (str,   "3rd",  False),
+      "recent_activity":      (str,   None,   False),
+      "skills_visible":       (list,  [],     False),
+      "load_failed":          (bool,  False,  False),
+  }
+
+  ── SCHEMA 2: scoring output ──
+  SCORE_SCHEMA = {
+      "score":       (int,  0,       True),
+      "reason":      (str,  "",      True),
+      "fit_angle":   (str,  "",      True),
+      "hook_source": (str,  "role_signal", False),
+      "surface":     (bool, False,   True),
+  }
+
+  ── SCHEMA 3: message draft output ──
+  DRAFT_SCHEMA = {
+      "draft_a":            (str,   "",      True),
+      "draft_b":            (str,   "",      False),
+      "recommended":        (str,   "A",     False),
+      "hook_source":        (str,   "",      False),
+      "char_count_a":       (int,   0,       False),
+      "char_count_b":       (int,   0,       False),
+      "applied_preferences":(list,  [],      False),
+      "drift_detected":     (bool,  False,   False),
+      "violations_found":   (list,  [],      False),
+  }
+
+  ── SCHEMA 4: enrichment output ──
+  ENRICHMENT_SCHEMA = {
+      "company_summary":       (str,  "Not found.", True),
+      "team_info":             (str,  "Not found.", False),
+      "tech_stack":            (list, [],           False),
+      "role_signals":          (list, [],           True),
+      "culture_signals":       (list, [],           False),
+      "linkedin_company_url":  (str,  "not found",  False),
+      "fit_indicators":        (list, [],           True),
+      "contact_targets":       (list, [],           True),
+      "enrichment_confidence": (str,  "LOW",        False),
+  }
+
+  ── SCHEMA 5: story output (parsed from .md file) ──
+  STORY_SCHEMA = {
+      "headline":       (str,  "",  True),
+      "key_strengths":  (list, [],  True),
+      "talking_points": (list, [],  True),
+      "gap_framing":    (str,  "No significant gaps identified.", False),
+      "outreach_tone":  (str,  "",  False),
+  }
+
+  ── VALIDATE FUNCTION ──
+  def validate(data: dict, schema: dict, step_name: str) -> dict:
+      """
+      Validates data against schema. Returns a clean dict.
+
+      For each field in schema:
+        - If field missing from data and required=True:
+            log WARNING: f"[{step_name}] Required field '{field}' missing — using default"
+            set data[field] = default
+        - If field missing from data and required=False:
+            set data[field] = default silently
+        - If field present but wrong type:
+            log WARNING: f"[{step_name}] Field '{field}' wrong type — using default"
+            set data[field] = default
+        - If field present and correct type: keep as-is
+
+      Special handling:
+        - For list fields: if value is None, replace with []
+        - For str fields: if value is None, replace with ""
+        - For int fields: if value is None, replace with 0
+        - For bool fields: if value is None, replace with False
+
+      Returns the cleaned dict (never raises).
+      """
+
+  ── SCHEMA LOOKUP ──
+  SCHEMAS = {
+      "profile":    PROFILE_SCHEMA,
+      "score":      SCORE_SCHEMA,
+      "draft":      DRAFT_SCHEMA,
+      "enrichment": ENRICHMENT_SCHEMA,
+      "story":      STORY_SCHEMA,
+  }
+
+  def validate_step(data: dict, step: str) -> dict:
+      """Convenience wrapper. step must be a key in SCHEMAS."""
+      if step not in SCHEMAS:
+          raise ValueError(f"Unknown step: {step}. Valid: {list(SCHEMAS.keys())}")
+      return validate(data, SCHEMAS[step], step)
+
+═══════════════════════════════════════════════
+CHANGE 2 — MODIFY EXISTING FILES
+═══════════════════════════════════════════════
+Tell Claude Code: add validate_step() calls at each step's output point.
+One line per change. Surgical.
+
+IN backend/agents/linkedin_agent.py read_profile():
+  After populating ctx["current_person"] from Selenium extraction:
+  Add import: from backend.memory.output_schemas import validate_step
+  cleaned = validate_step(dict(ctx["current_person"]), "profile")
+  ctx["current_person"] = cleaned
+
+IN backend/agents/message_agent.py score_contact():
+  After result = ask_json(prompt):
+  Add import: from backend.memory.output_schemas import validate_step
+  result = validate_step(result, "score")
+  Then populate ctx["current_score"] from the validated result.
+
+IN backend/agents/message_agent.py draft_message():
+  After result = ask_json(prompt):
+  result = validate_step(result, "draft")
+  Also: recalculate char_count_a and char_count_b from actual draft text
+  result["char_count_a"] = len(result["draft_a"])
+  result["char_count_b"] = len(result["draft_b"])
+
+IN backend/agents/enrichment_agent.py enrich_job():
+  After result = ask_json(prompt, system=...):
+  Add import: from backend.memory.output_schemas import validate_step
+  result = validate_step(result, "enrichment")
+  Then proceed to save JSON and insert to DB.
+
+IN backend/agents/story_agent.py generate_story():
+  After parsing the Claude response into sections:
+  Add import: from backend.memory.output_schemas import validate_step
+  parsed = validate_step(parsed, "story")
+  Then save and return.
+
+═══════════════════════════════════════════════
+CHANGE 3 — ADD CHAR COUNT GUARD ON DRAFTS
+═══════════════════════════════════════════════
+File to modify: backend/agents/message_agent.py
+
+Tell Claude Code:
+  After validate_step on the draft result, add a hard trim:
+
+  LINKEDIN_CHAR_LIMIT = 300
+
+  def trim_to_limit(draft: str, limit: int = LINKEDIN_CHAR_LIMIT) -> str:
+      """
+      If draft exceeds limit: trim at the last word boundary before limit.
+      Never cut mid-word. Never cut mid-sentence if avoidable.
+      Returns trimmed string.
+      """
+      if len(draft) <= limit:
+          return draft
+      trimmed = draft[:limit]
+      last_space = trimmed.rfind(" ")
+      if last_space > limit * 0.8:   # only trim at word boundary if not too far back
+          trimmed = trimmed[:last_space]
+      return trimmed.rstrip(" .,")
+
+  After validate_step in draft_message():
+    result["draft_a"] = trim_to_limit(result["draft_a"])
+    result["draft_b"] = trim_to_limit(result["draft_b"])
+    result["char_count_a"] = len(result["draft_a"])
+    result["char_count_b"] = len(result["draft_b"])
+
+═══════════════════════════════════════════════
+TEST — VERIFY ALL CHANGES WORK
+═══════════════════════════════════════════════
+Test 1 — validate fills missing required fields with defaults:
+  python -c "
+  from backend.memory.output_schemas import validate_step
+  incomplete = {'score': 7}  # missing reason, fit_angle, hook_source, surface
+  result = validate_step(incomplete, 'score')
+  print('result:', result)
+  print('all keys present:', all(k in result for k in ['score','reason','fit_angle','hook_source','surface']))
+  "
+  Expected: all keys present True, no crash
+
+Test 2 — validate handles wrong types:
+  python -c "
+  from backend.memory.output_schemas import validate_step
+  bad_types = {
+      'score': 'eight',          # wrong type — should be int
+      'reason': None,            # None for str field
+      'fit_angle': 'builder',
+      'hook_source': 'ai_signal',
+      'surface': True
+  }
+  result = validate_step(bad_types, 'score')
+  print('score type:', type(result['score']))
+  print('reason:', repr(result['reason']))
+  "
+  Expected: score type is int (default 0), reason is '' not None
+
+Test 3 — trim_to_limit works:
+  python -c "
+  from backend.agents.message_agent import trim_to_limit
+  long_msg = 'A' * 250 + ' extra words that push it over'
+  print('original len:', len(long_msg))
+  trimmed = trim_to_limit(long_msg)
+  print('trimmed len:', len(trimmed))
+  print('under limit:', len(trimmed) <= 300)
+  "
+  Expected: trimmed len <= 300
+
+Test 4 — enrichment validation catches empty fit_indicators:
+  python -c "
+  from backend.memory.output_schemas import validate_step
+  import logging
+  logging.basicConfig(level=logging.WARNING)
+  bad_enrich = {
+      'company_summary': 'A company.',
+      'role_signals': ['Python', 'AI'],
+      # fit_indicators and contact_targets missing
+  }
+  result = validate_step(bad_enrich, 'enrichment')
+  print('fit_indicators:', result['fit_indicators'])
+  print('contact_targets:', result['contact_targets'])
+  "
+  Expected: both are [], WARNING logged for fit_indicators and contact_targets
+
+═══════════════════════════════════════════════
+END OF DIRECTIVE 05
+═══════════════════════════════════════════════
+Files created:    backend/memory/output_schemas.py
+Files modified:   backend/agents/linkedin_agent.py   (validate profile)
+                  backend/agents/message_agent.py    (validate score + draft + trim)
+                  backend/agents/enrichment_agent.py (validate enrichment)
+                  backend/agents/story_agent.py      (validate story)

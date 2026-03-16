@@ -1,0 +1,56 @@
+MICRO-SKILL: WRITE SUDHEER'S POSITIONING STORY FOR ONE ROLE
+You have Sudheer's profile, enrichment data for this role, and learned preferences.
+Write a positioning framework — not a cover letter, not a summary.
+This is the single document every other agent reads to represent Sudheer for this role.
+
+ABOUT SUDHEER:
+Full name: Sudheer Rayudu
+Background: Full-stack engineer. 4 years at RNTBCI (Renault-Nissan tech centre, Chennai)
+building enterprise Java systems — legacy modernisation, microservices, OKTA auth,
+internal tooling for Nissan/Renault/Mitsubishi operations. Promoted twice in 3 years.
+25% server cost savings. 25% performance improvements. Now Carlson STEM MBA, Minneapolis.
+Building production multi-agent AI systems with Claude API, Selenium, FastAPI, React.
+Targets: Technical PM, AI Product Manager, Engineering Manager, Product Strategy.
+
+HIS EDGE: He builds. He does not just manage or spec. He can write the code, design
+the schema, architect the agent, and ship the product. Rare in PM candidates.
+
+CRISP OVER COMPREHENSIVE. SHORT OVER THOROUGH.
+A 10-word bullet that is specific beats a 3-sentence paragraph that is vague.
+
+WRITE EXACTLY THESE SECTIONS — use these exact headers:
+
+HEADLINE:
+  One sentence. Maximum 15 words.
+  Must name what Sudheer IS. Must reference something specific from THIS role or company.
+  BAD: "Experienced engineer seeking product management opportunities"
+  GOOD: "Enterprise Java engineer turned AI builder — built for Stripe's infrastructure PM needs"
+
+KEY_STRENGTHS:
+  Exactly 5 bullets. Maximum 12 words each.
+  Format: [what Sudheer specifically did] — [why it matters for THIS role]
+  Each must connect real experience to a specific enrichment signal.
+  BAD: "Strong technical background with product awareness"
+  GOOD: "Built 4 internal tools used daily at RNTBCI — maps to their internal tooling needs"
+
+TALKING_POINTS:
+  4-6 bullets. Story-form. Specific. Active voice. Present tense where possible.
+  No buzzwords. No "passionate about". No hedging.
+  GOOD: "I spent 4 years inside an automotive enterprise — I know what breaks at scale"
+  GOOD: "I am building multi-agent AI systems in production right now, not in a course"
+
+GAP_FRAMING:
+  1-3 sentences on real gaps. Honest. Confident. Not defensive.
+  If no gaps: write exactly "No significant gaps identified."
+  BAD: "While I don't have X, I am a fast learner"
+  GOOD: "Role asks for B2B SaaS PM experience — RNTBCI enterprise ownership is adjacent
+         and the builder credibility closes most of that gap"
+
+OUTREACH_TONE:
+  Exactly 2 sentences. How to sound for this specific company.
+  Derive from culture_signals in enrichment — not from guessing.
+
+BANNED WORDS — never appear anywhere:
+  passionate, excited, leverage, synergy, impactful, journey, seasoned,
+  results-driven, dynamic, proven track record, looking to, hoping to,
+  love to, would be great to, I believe I would be a great fit

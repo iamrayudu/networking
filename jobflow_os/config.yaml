@@ -1,0 +1,57 @@
+claude:
+  api_key: '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'
+  model: 'claude-sonnet-4-6'
+  max_tokens: 2000
+  story_max_tokens: 3000
+  decision_inference_max_tokens: 800
+
+server:
+  host: 'localhost'
+  backend_port: 8000
+  frontend_port: 5173
+  websocket_path: '/ws'
+
+paths:
+  input_excel: 'data/input/jobs.xlsx'
+  database: 'data/jobflow.db'
+  chroma_dir: 'data/chroma'
+  enriched_data: 'data/enriched/'
+  stories: 'stories/'
+  drafts: 'drafts/'
+  sent: 'sent/'
+  reports: 'reports/'
+  logs: 'logs/'
+  profile_dir: 'profile/'
+
+enrichment:
+  max_pages_per_job: 5
+  search_delay_seconds: 2.5
+  search_queries_per_job: 4
+
+agents:
+  max_parallel_agents: 5
+  contacts_per_company: 5
+  relevance_min_score: 4
+  action_delay_seconds: 3
+  pause_before_send: true
+  show_applied_preferences: true
+
+linkedin:
+  profile_url: 'https://www.linkedin.com/in/sudheer-rayudu-8577171a3/'
+  max_invites_per_day: 20
+  email: ''
+  password: ''
+  # Preferred auth — paste from browser DevTools (Application > Cookies > linkedin.com)
+  # When session expires: update li_at + li_jsessionid here, restart server. Done.
+  li_at: ''
+  li_jsessionid: ''
+
+memory:
+  decision_inference: true
+  preference_update_on_session_end: true
+  semantic_search_results: 5
+
+logging:
+  level: 'INFO'
+  console: true
+  file: true
