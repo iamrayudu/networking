@@ -1,0 +1,44 @@
+{
+  "company_summary": "Sprinklr is an enterprise SaaS platform offering unified customer experience management (CXM) across marketing, customer service, and social media channels. The company went public in 2021 and serves large enterprise clients managing digital customer interactions at scale. Sprinklr has been investing heavily in AI-powered features across its platform, including generative AI for customer support and insights.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "product operations",
+    "process improvement",
+    "cross-functional coordination",
+    "data analysis",
+    "product lifecycle support",
+    "stakeholder communication",
+    "go-to-market operations",
+    "tooling and workflow optimization",
+    "documentation",
+    "sprint or release tracking"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/sprinklr",
+  "fit_indicators": [
+    "Product Operations roles require building and maintaining internal tooling and workflows \u2014 Sudheer built billing, attendance, and design approval systems at RNTBCI used daily across Nissan/Renault/Mitsubishi org, directly analogous experience",
+    "Sprinklr is an enterprise SaaS company with complex cross-functional operations \u2014 Sudheer's 4 years at RNTBCI supporting Nissan/Renault/Mitsubishi operations maps to understanding large enterprise internal coordination",
+    "Sprinklr is investing in AI-powered platform features \u2014 Sudheer is actively building multi-agent AI systems with Claude API, giving him hands-on AI product context relevant to Sprinklr's current strategic direction",
+    "Product Operations often involves microservices and API integrations across teams \u2014 Sudheer has direct production experience with microservices architecture and OKTA auth integration at enterprise scale",
+    "MBA-level strategic framing combined with hands-on engineering is a rare profile for Product Operations \u2014 Sudheer's Carlson STEM MBA plus 4 years enterprise engineering directly bridges the technical-to-business gap this role requires"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Operations Manager or Director of Product Operations",
+      "function": "Product Operations",
+      "reason": "Directly manages or owns the function this intern role sits within \u2014 best person to understand the actual day-to-day work and make a hiring recommendation"
+    },
+    {
+      "title": "Senior Product Manager or Group PM",
+      "function": "Product Management",
+      "reason": "Product Operations interns typically support PMs closely \u2014 a senior PM working on AI or platform products would see direct value in Sudheer's technical and AI background"
+    },
+    {
+      "title": "MBA Recruiting or Early Talent Recruiter",
+      "function": "Talent Acquisition",
+      "reason": "Sprinklr recruits MBA interns through structured programs \u2014 recruiter can confirm role scope and connect Sudheer to the right hiring manager if direct contacts are not accessible"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

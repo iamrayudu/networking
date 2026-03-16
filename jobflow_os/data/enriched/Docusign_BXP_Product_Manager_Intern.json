@@ -1,0 +1,27 @@
+{
+  "company_summary": "Docusign is the global leader in electronic signature and agreement management, offering products including eSignature, CLM, Rooms, and digital identity tools. The company is expanding beyond e-signature into a broader 'Intelligent Agreement Management' platform powered by AI (Insight, Analyzer). Their trajectory points toward workflow automation, AI-driven contract intelligence, and deep enterprise integrations.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [],
+  "contact_targets": [
+    {
+      "title": "Product Manager, AI/Intelligent Agreement Management",
+      "function": "Product",
+      "reason": "Directly manages or works alongside the target role; best positioned to evaluate Sudheer's AI product and enterprise background"
+    },
+    {
+      "title": "Engineering Manager, Platform or Integrations",
+      "function": "Engineering",
+      "reason": "Sudheer's enterprise Java and microservices background aligns with Docusign's integration-heavy platform engineering; peer-level connection point"
+    },
+    {
+      "title": "Technical Recruiter, Product or Engineering",
+      "function": "Talent Acquisition",
+      "reason": "Fallback if no direct team contacts are identifiable given thin enrichment data"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

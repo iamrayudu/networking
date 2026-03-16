@@ -1,0 +1,44 @@
+{
+  "company_summary": "Docusign is the global leader in electronic signature and agreement management software, serving hundreds of thousands of businesses worldwide. The company has been expanding beyond e-signature into its Intelligent Agreement Management (IAM) platform, using AI to extract insights and automate workflows from contracts and agreements. Their current strategic direction is heavily oriented toward AI-powered document intelligence and enterprise workflow automation.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "B2I (Business-to-Internal) product management",
+    "internal tooling and productivity",
+    "stakeholder alignment",
+    "product roadmap development",
+    "cross-functional collaboration",
+    "data-driven decision making",
+    "enterprise workflow automation",
+    "requirements gathering",
+    "agile product development",
+    "intern-level PM scope with structured mentorship"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/docusign",
+  "fit_indicators": [
+    "B2I PM role focuses on internal tooling \u2014 Sudheer built and owned internal tools at RNTBCI (billing, attendance, design approval systems) used daily across Nissan/Renault/Mitsubishi org, a direct parallel",
+    "Docusign's IAM platform is AI-first \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly aligned with Docusign's current strategic investment in AI-powered agreement intelligence",
+    "Enterprise Java systems at RNTBCI give Sudheer technical credibility to work alongside Docusign engineers and write precise, implementable product specs \u2014 important for a technical PM intern role",
+    "Legacy modernisation experience at RNTBCI mirrors Docusign's internal challenge of evolving a mature platform \u2014 Sudheer understands trade-offs of migrating enterprise systems without disrupting operations",
+    "Carlson STEM MBA signals structured PM methodology training layered on top of 4 years of hands-on engineering, matching the hybrid technical-business profile typically sought in Docusign PM internships"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager, Internal Platforms or Intelligent Agreement Management",
+      "function": "Product",
+      "reason": "Most likely direct manager or adjacent peer to this intern role \u2014 can speak to team fit, day-to-day scope, and advocate internally"
+    },
+    {
+      "title": "Engineering Manager or Staff Engineer, Internal Tools",
+      "function": "Engineering",
+      "reason": "Sudheer's engineering background gives him credibility to have a peer-level technical conversation, and this person can validate cross-functional fit for the role"
+    },
+    {
+      "title": "MBA Recruiting Lead or University Programs Manager",
+      "function": "Talent / Recruiting",
+      "reason": "For an MBA intern role, the university recruiting team owns the process and can confirm timeline, team placement, and application status"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

@@ -1,0 +1,55 @@
+{
+  "company_summary": "Oracle is a global enterprise technology company specialising in cloud infrastructure (OCI), databases, and enterprise applications (ERP, HCM, SCM). It is aggressively expanding its cloud market share competing with AWS and Azure, with recent hyperscaler infrastructure wins and growing AI/LLM integration across its Fusion and NetSuite product lines. Oracle's product direction is heavily focused on autonomous database, cloud-native services, and embedding AI into enterprise workflows.",
+  "team_info": "not found",
+  "tech_stack": [
+    "Java",
+    "Oracle Cloud Infrastructure",
+    "Oracle Database",
+    "REST APIs",
+    "Kubernetes",
+    "Python",
+    "SQL"
+  ],
+  "role_signals": [
+    "product management",
+    "MBA internship",
+    "engineering collaboration",
+    "cross-functional coordination",
+    "product roadmap",
+    "requirements gathering",
+    "go-to-market strategy",
+    "enterprise software",
+    "cloud services",
+    "data-driven decision making",
+    "stakeholder communication",
+    "technical product sense",
+    "agile methodology"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/oracle/",
+  "fit_indicators": [
+    "Oracle runs one of the largest Java ecosystems in enterprise software \u2014 Sudheer has 4 years of Java/Spring Boot production experience at RNTBCI, giving him credibility in engineering conversations that most MBA PMs lack",
+    "Oracle PM interns are expected to bridge engineering and business stakeholders \u2014 Sudheer managed cross-functional internal tooling at RNTBCI used daily across Nissan, Renault, and Mitsubishi operations, demonstrating exactly this bridging function",
+    "Oracle is actively embedding AI into its Fusion and cloud product lines \u2014 Sudheer is currently building multi-agent AI systems with the Claude API, directly relevant to Oracle's AI product integration push",
+    "Oracle's enterprise focus on legacy modernisation and cloud migration maps to Sudheer's RNTBCI work modernising legacy systems into microservices architecture for a global automotive OEM",
+    "Oracle PM roles require authentication, security, and identity product familiarity \u2014 Sudheer implemented OKTA-based auth systems at RNTBCI in enterprise production environments"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager, Oracle Cloud or Fusion Applications",
+      "function": "Product Management",
+      "reason": "Most likely manager or peer for the PM intern \u2014 can speak directly to what the role demands and champion a strong candidate internally"
+    },
+    {
+      "title": "Engineering Manager or Principal Engineer, OCI or Database Products",
+      "function": "Engineering",
+      "reason": "PM interns at Oracle work closely with engineering \u2014 a technical contact who sees Sudheer's Java and microservices background will appreciate the rare PM-with-real-engineering-depth angle"
+    },
+    {
+      "title": "MBA Recruiting Lead or University Programs Manager",
+      "function": "Talent Acquisition",
+      "reason": "Oracle runs structured MBA internship pipelines \u2014 recruiter contact is useful here as a third option to confirm programme fit and timeline"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

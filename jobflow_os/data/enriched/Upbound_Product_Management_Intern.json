@@ -1,0 +1,53 @@
+{
+  "company_summary": "Upbound is the company behind Crossplane, the open-source project that extends Kubernetes to enable infrastructure-as-code and multi-cloud control planes. They build Universal Crossplane (UXP) and Upbound Cloud as their commercial offerings, targeting platform engineering teams managing cloud infrastructure at scale. Their trajectory is centered on becoming the standard control plane layer for enterprise cloud infrastructure.",
+  "team_info": "not found",
+  "tech_stack": [
+    "Kubernetes",
+    "Crossplane",
+    "Go",
+    "cloud-native",
+    "AWS",
+    "GCP",
+    "Azure",
+    "Helm",
+    "GitOps"
+  ],
+  "role_signals": [
+    "product management",
+    "intern",
+    "cloud infrastructure",
+    "developer tools",
+    "platform engineering",
+    "roadmap",
+    "cross-functional collaboration",
+    "customer feedback",
+    "open-source community"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/upbound-io",
+  "fit_indicators": [
+    "Upbound builds tooling for platform/DevOps teams managing enterprise infrastructure \u2014 Sudheer built and maintained enterprise-grade internal tooling at RNTBCI used across Nissan/Renault/Mitsubishi operations, directly comparable organizational complexity",
+    "Crossplane and Upbound products integrate into microservices and cloud-native architectures \u2014 Sudheer has 4 years of microservices experience in Java/Spring Boot production systems, giving him credible technical grounding to speak to the developer persona",
+    "PM intern role likely involves synthesizing developer and platform engineer feedback into roadmap priorities \u2014 Sudheer's RNTBCI experience bridging legacy systems with modern microservices gives him firsthand perspective on platform pain points that Upbound's customers face",
+    "Upbound targets enterprise cloud adoption and governance \u2014 Sudheer worked within a large multinational automotive enterprise (RNTBCI) navigating real enterprise constraints, security (OKTA auth), and cross-org coordination, matching the customer profile Upbound sells into",
+    "Role intersects AI product and cloud tooling \u2014 Sudheer is actively building multi-agent AI systems with Claude API, signaling the kind of technical product curiosity and builder instinct that a developer-tools PM internship rewards"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Director of Product",
+      "function": "Product",
+      "reason": "Direct manager or close collaborator for the intern role; best person to evaluate PM fit and advocate for the hire"
+    },
+    {
+      "title": "Staff or Principal Engineer working on Crossplane or UXP",
+      "function": "Engineering",
+      "reason": "Senior IC who works alongside PM function; can validate technical credibility and champion Sudheer internally based on his enterprise Java and microservices background"
+    },
+    {
+      "title": "Developer Advocate or Head of Community",
+      "function": "Product / Community",
+      "reason": "Crossplane is open-source so this person shapes product-community feedback loops \u2014 a key function for a PM intern; warm entry point given Sudheer's interest in developer tooling"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

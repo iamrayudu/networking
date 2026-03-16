@@ -1,0 +1,27 @@
+{
+  "company_summary": "Zoox is an Amazon-owned autonomous vehicle company building a purpose-built robotaxi \u2014 not a converted car \u2014 designed from the ground up for passengers. They are actively operating in Las Vegas and San Francisco with Austin and Miami expansions coming soon. Their trajectory is commercial robotaxi deployment at scale.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [],
+  "contact_targets": [
+    {
+      "title": "Engineering Manager or Technical Program Manager",
+      "function": "Autonomous Vehicle Software / Platform Engineering",
+      "reason": "Most likely manager of the target role; best positioned to evaluate Sudheer's Java/microservices and AI systems background"
+    },
+    {
+      "title": "Senior Software Engineer or Staff Engineer",
+      "function": "Backend Infrastructure or Autonomy Stack",
+      "reason": "Senior IC peer who could speak to day-to-day role fit and refer internally"
+    },
+    {
+      "title": "Technical Recruiter",
+      "function": "Engineering Talent Acquisition",
+      "reason": "Fallback only \u2014 raw data returned no team or role specifics, recruiter may be only accessible contact"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

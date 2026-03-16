@@ -1,0 +1,45 @@
+{
+  "company_summary": "Tyler Technologies is a leading provider of integrated software and technology solutions for the public sector, serving local and state governments across the US. Their product portfolio spans courts, public safety, ERP, tax, appraisal, and citizen engagement platforms. The company has been on a sustained growth trajectory through acquisitions and cloud modernisation of legacy government software.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "product management internship",
+    "public sector software",
+    "government technology",
+    "SaaS product lifecycle",
+    "roadmap planning",
+    "stakeholder communication",
+    "requirements gathering",
+    "cross-functional collaboration",
+    "agile development",
+    "user research",
+    "go-to-market support"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/tyler-technologies",
+  "fit_indicators": [
+    "Tyler Technologies modernises legacy government systems \u2014 Sudheer's core RNTBCI work was legacy modernisation of enterprise Java systems used across Nissan/Renault/Mitsubishi operations, a direct parallel in complexity and stakeholder scope",
+    "PM intern roles at enterprise software companies require internal tooling and workflow product thinking \u2014 Sudheer built billing, attendance, and design approval systems at RNTBCI used daily across a large multinational org",
+    "Tyler Technologies products integrate identity and access management across government platforms \u2014 Sudheer implemented OKTA authentication in production enterprise systems at RNTBCI",
+    "PM intern roles increasingly require AI product fluency as govtech vendors embed AI into workflows \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly relevant to emerging product initiatives",
+    "Tyler targets technical PMs who can bridge engineering and business stakeholders \u2014 Sudheer's background spans 4 years of full-stack Java engineering plus an MBA, matching the hybrid profile Tyler would want in a PM intern"
+  ],
+  "contact_targets": [
+    {
+      "title": "Product Manager or Senior Product Manager",
+      "function": "Product Management \u2014 any Tyler vertical (Courts, ERP, Public Safety)",
+      "reason": "Most likely day-to-day manager or mentor for a PM intern; best person to speak to scope of intern projects and team fit"
+    },
+    {
+      "title": "Director of Product Management",
+      "function": "Product leadership within a Tyler division",
+      "reason": "Owns intern headcount decisions and can speak to strategic priorities; warm outreach here signals seriousness about the role"
+    },
+    {
+      "title": "University Recruiting or Early Careers Recruiter",
+      "function": "Talent Acquisition \u2014 Intern Programs",
+      "reason": "Handles logistics and screening for the Summer 2026 cohort; useful if no product team contact responds"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

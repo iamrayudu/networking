@@ -1,0 +1,46 @@
+{
+  "company_summary": "FieldPulse is a field service management (FSM) software company providing an all-in-one platform for small to mid-sized contractors and trades businesses \u2014 covering scheduling, dispatching, invoicing, CRM, and job management. The company is in growth-stage SaaS, competing in the FSM space against ServiceTitan and Jobber, and has been expanding its platform capabilities including payments and customer communication features. Their product direction is increasingly focused on AI-powered automation to reduce manual work for field service operators.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "AI product management",
+    "emerging technology",
+    "field service management",
+    "product roadmap",
+    "AI feature development",
+    "automation",
+    "SaaS product lifecycle",
+    "cross-functional collaboration",
+    "customer-facing AI tools",
+    "workflow automation",
+    "data-driven decision making",
+    "LLMs or generative AI integration"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/fieldpulse",
+  "fit_indicators": [
+    "Role targets AI product integration in a SaaS platform \u2014 Sudheer is actively building multi-agent AI systems using Claude API, giving him hands-on AI product construction experience directly relevant to shaping FieldPulse's emerging tech roadmap",
+    "FieldPulse serves trades and contractor businesses with workflow automation \u2014 Sudheer built internal operational tooling at RNTBCI (billing, attendance, design approval systems) used daily across Nissan/Renault/Mitsubishi org, demonstrating PM-adjacent ability to scope and ship workflow tools for operational users",
+    "Growth-stage SaaS company scaling its platform \u2014 Sudheer's 4 years modernising legacy enterprise Java systems into microservices at RNTBCI maps to understanding platform architecture trade-offs that a Technical PM at FieldPulse would need to navigate",
+    "AI PM role likely requires bridging engineering and business stakeholders \u2014 Sudheer's Carlson STEM MBA combined with full-stack engineering background positions him to communicate across both product and engineering teams, a core competency for an emerging tech PM",
+    "Role likely involves defining AI features for non-technical end users (contractors, dispatchers) \u2014 Sudheer's RNTBCI experience building tools used by non-technical Renault/Nissan operational staff demonstrates ability to translate complex technical capabilities into usable product experiences"
+  ],
+  "contact_targets": [
+    {
+      "title": "VP of Product or Head of Product",
+      "function": "Product Leadership",
+      "reason": "Most likely hiring manager or direct stakeholder for an AI PM role; best person to have a conversation about product vision and where AI fits in the roadmap"
+    },
+    {
+      "title": "Senior Product Manager or Staff Product Manager",
+      "function": "Product \u2014 Platform or Core Features",
+      "reason": "Peer-level IC who would work alongside this role; can speak to day-to-day scope, team dynamics, and what gaps they are hiring to fill"
+    },
+    {
+      "title": "Engineering Manager or Tech Lead \u2014 AI or Platform",
+      "function": "Engineering",
+      "reason": "AI PM roles at growth-stage SaaS companies work tightly with engineering leads; this contact can validate technical fit and surface the real problem space Sudheer would be solving"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

@@ -1,0 +1,53 @@
+{
+  "company_summary": "Rubrik is a cybersecurity company focused on cyber resilience \u2014 protecting enterprise data and identity against ransomware and breaches through zero-trust, immutable backups, threat analytics, and identity security. They recently IPO'd and are aggressively expanding their platform with AI capabilities including a Ruby AI Agent and multi-IdP identity recovery. Their trajectory is toward becoming a unified cyber resilience platform spanning on-premises, cloud, and SaaS environments.",
+  "team_info": "not found",
+  "tech_stack": [
+    "AWS",
+    "Azure",
+    "Google Cloud",
+    "Oracle Cloud",
+    "Microsoft SQL Server",
+    "Oracle",
+    "MongoDB",
+    "MySQL",
+    "PostgreSQL",
+    "SAP HANA",
+    "IBM Db2",
+    "Kubernetes",
+    "OpenShift",
+    "Nutanix",
+    "VMware",
+    "Okta",
+    "Microsoft 365",
+    "Salesforce",
+    "GitHub",
+    "Azure DevOps"
+  ],
+  "role_signals": [],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [
+    "Rubrik has a dedicated Okta Backup & Recovery product and multi-IdP identity security focus \u2014 Sudheer implemented OKTA authentication in enterprise systems at RNTBCI, giving him direct product-domain familiarity",
+    "Rubrik is building AI-native features including a Ruby AI Agent \u2014 Sudheer is actively building multi-agent AI systems using Claude API, directly relevant to understanding and shaping AI product direction",
+    "Rubrik's platform spans legacy on-premises (SQL Server, IBM Db2, VMware) and modern cloud environments \u2014 Sudheer's 4 years of legacy modernisation and microservices work at RNTBCI mirrors this hybrid architecture challenge",
+    "Rubrik targets large enterprise customers across healthcare, financial services, and government \u2014 Sudheer built internal tooling used across Nissan/Renault/Mitsubishi operations at enterprise scale, demonstrating enterprise product sensibility"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager, Identity Security or AI Products",
+      "function": "Product Management",
+      "reason": "Closest peer to the target role; would know team headcount, roadmap priorities, and what background they are hiring for"
+    },
+    {
+      "title": "Senior Software Engineer or Staff Engineer, Platform or AI",
+      "function": "Engineering",
+      "reason": "Would understand the technical depth required and can speak to the stack and product challenges Sudheer would be working on"
+    },
+    {
+      "title": "Technical Recruiter, Product or Engineering",
+      "function": "Talent Acquisition",
+      "reason": "Fallback if no PM or IC contact is reachable; can route to the right hiring manager"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

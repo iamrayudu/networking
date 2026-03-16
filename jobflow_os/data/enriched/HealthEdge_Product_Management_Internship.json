@@ -1,0 +1,44 @@
+{
+  "company_summary": "HealthEdge provides cloud-based software solutions for health insurance payers, including its core administrative processing platform (HealthRules Payor) and acquired products like Burgess, Wellframe, and Source. The company is focused on modernising legacy insurance infrastructure with SaaS-based core administration, payment integrity, and care management tools. Backed by Blackstone, HealthEdge is on a growth trajectory targeting digital transformation for health plans.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "product management",
+    "internship",
+    "health insurance payer software",
+    "SaaS product lifecycle",
+    "roadmap planning",
+    "cross-functional collaboration",
+    "user story writing",
+    "agile/scrum",
+    "product requirements",
+    "stakeholder communication"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/healthedge-software",
+  "fit_indicators": [
+    "HealthEdge modernises legacy insurance infrastructure with SaaS platforms \u2014 Sudheer has 4 years of direct legacy modernisation experience at RNTBCI converting monolithic systems to microservices",
+    "Role likely involves internal tooling and workflow products for payer operations \u2014 Sudheer built billing, attendance, and design approval systems used daily across Nissan/Renault/Mitsubishi orgs",
+    "HealthEdge products involve identity and access for enterprise health plan clients \u2014 Sudheer implemented OKTA authentication in enterprise Java systems at RNTBCI",
+    "AI product integration is a growing initiative at HealthEdge (Wellframe care management, AI-assisted workflows) \u2014 Sudheer is actively building multi-agent AI systems using Claude API",
+    "PM intern role at a SaaS company requires technical credibility to work with engineering \u2014 Sudheer's 4 years of full-stack Java/Spring Boot experience enables direct collaboration with engineering teams"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Group PM",
+      "function": "Product Management \u2014 HealthRules Payor or Wellframe team",
+      "reason": "Direct manager or peer of the intern role; best person to speak to day-to-day work, team fit, and project scope"
+    },
+    {
+      "title": "Associate Product Manager or PM II",
+      "function": "Product Management",
+      "reason": "Recently hired IC doing similar work; can give authentic ground-level insight into the intern experience and team culture"
+    },
+    {
+      "title": "University Recruiter or Talent Acquisition Partner",
+      "function": "HR / Recruiting",
+      "reason": "Fallback contact to confirm application status and signal strong interest if PM team contacts are unresponsive"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

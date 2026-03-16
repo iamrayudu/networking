@@ -1,0 +1,57 @@
+{
+  "company_summary": "Typeface is a generative AI content platform built for enterprises, enabling teams to create on-brand content at scale using AI. Founded by Abhay Parasnis (ex-Adobe CTO) in 2022, the company raised $165M+ at a $1B+ valuation and targets marketing and creative teams at large organizations. Their core product focuses on brand personalization, multi-modal content generation, and AI-native workflows integrated into enterprise tools.",
+  "team_info": "not found",
+  "tech_stack": [
+    "generative AI",
+    "LLMs",
+    "multi-modal AI",
+    "cloud infrastructure",
+    "enterprise integrations"
+  ],
+  "role_signals": [
+    "product roadmap",
+    "user research",
+    "cross-functional collaboration",
+    "AI product features",
+    "enterprise content",
+    "go-to-market",
+    "data-driven decision making",
+    "product metrics",
+    "customer discovery",
+    "brand personalization",
+    "sprint planning",
+    "PRDs",
+    "stakeholder communication"
+  ],
+  "culture_signals": [
+    "fast-paced startup environment",
+    "AI-first product philosophy",
+    "enterprise-focused"
+  ],
+  "linkedin_company_url": "https://www.linkedin.com/company/typeface-ai",
+  "fit_indicators": [
+    "Typeface builds enterprise AI products \u2014 Sudheer has 4 years delivering production systems inside a large enterprise (RNTBCI/Nissan-Renault-Mitsubishi), giving him direct empathy for enterprise user pain points and org complexity",
+    "Typeface is an AI-native company building with LLMs \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly matching the technical fluency a PM intern needs to work credibly with engineers on AI features",
+    "Role likely involves internal tooling and workflow automation signals \u2014 Sudheer built billing, attendance, and design approval internal tools at RNTBCI used daily across a multi-brand automotive org, demonstrating PM-adjacent product ownership",
+    "Typeface targets marketing and creative workflows requiring cross-functional coordination \u2014 Sudheer's Carlson MBA positions him to bridge technical and business stakeholder communication, a core PM intern competency",
+    "Typeface was founded by Adobe's ex-CTO and serves enterprise content teams \u2014 Sudheer's background in legacy modernisation and microservices at scale signals ability to understand both the technical debt and transformation journey enterprise customers face"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Group PM",
+      "function": "Product",
+      "reason": "Direct manager or collaborator for PM interns \u2014 best person to validate fit, discuss roadmap priorities, and advocate for intern candidates internally"
+    },
+    {
+      "title": "Software Engineer or AI Engineer (mid-senior)",
+      "function": "Engineering",
+      "reason": "Peers to PM interns on feature squads \u2014 Sudheer's Java/AI engineering background gives him natural credibility to connect with this group and learn the technical landscape before joining"
+    },
+    {
+      "title": "MBA Recruiter or University Recruiting Lead",
+      "function": "Talent / People",
+      "reason": "Specifically sourcing MBA PM interns \u2014 useful for confirming internship timeline, application status, and Carlson MBA pipeline if direct PM contact is unavailable"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

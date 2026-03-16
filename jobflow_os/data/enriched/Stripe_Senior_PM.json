@@ -1,0 +1,44 @@
+{
+  "company_summary": "Stripe builds financial infrastructure for the internet, enabling businesses to accept payments, manage revenue, and scale operations globally. The company has been expanding aggressively into developer-facing financial products including billing, tax, treasury, and fraud prevention. Stripe's core identity is as a developer-first platform, with product decisions driven by API design quality and deep technical credibility.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "payments infrastructure",
+    "API product thinking",
+    "developer experience",
+    "cross-functional leadership",
+    "data-driven decision making",
+    "enterprise and platform products",
+    "go-to-market collaboration",
+    "revenue and growth metrics",
+    "technical product management",
+    "stakeholder alignment"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/stripe",
+  "fit_indicators": [
+    "Stripe is deeply API and developer-platform oriented \u2014 Sudheer built microservices and internal tooling at RNTBCI consumed across Nissan/Renault/Mitsubishi orgs, demonstrating platform-scale product thinking",
+    "Stripe products serve enterprise clients with complex auth and identity needs \u2014 Sudheer implemented OKTA-based authentication systems in a multi-brand enterprise environment directly paralleling this",
+    "Senior PM roles at Stripe require bridging legacy and modern systems \u2014 Sudheer led legacy modernisation projects at RNTBCI, a core skill Stripe values in infrastructure product work",
+    "Stripe increasingly invests in AI-driven financial tooling \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly relevant to Stripe's emerging AI product surface",
+    "Stripe values technical PMs who can partner credibly with engineers \u2014 Sudheer's 4 years as a full-stack Java engineer gives him the engineering depth Stripe explicitly looks for in PM candidates"
+  ],
+  "contact_targets": [
+    {
+      "title": "Group Product Manager or Director of Product",
+      "function": "Product \u2014 Payments, Billing, or Developer Platform",
+      "reason": "Direct hiring manager equivalent for Senior PM roles; best positioned to evaluate technical product background and vouch internally"
+    },
+    {
+      "title": "Senior Product Manager",
+      "function": "Product \u2014 same team as target role",
+      "reason": "Peer-level contact who can speak to team culture, current priorities, and make a warm internal referral"
+    },
+    {
+      "title": "Engineering Manager",
+      "function": "Engineering \u2014 Payments Infrastructure or Platform",
+      "reason": "Stripe PMs work in tight partnership with EMs; an EM contact validates Sudheer's engineering credibility and can champion him as a technically fluent PM candidate"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

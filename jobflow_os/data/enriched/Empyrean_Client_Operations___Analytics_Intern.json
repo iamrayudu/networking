@@ -1,0 +1,43 @@
+{
+  "company_summary": "Empyrean is a benefits administration technology company that provides employer-sponsored benefits management platforms, primarily serving mid-to-large enterprises. They focus on employee benefits enrollment, administration, and analytics, helping HR teams manage complex benefits programs. The company emphasizes data-driven insights and client success as core to their value proposition.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "client operations",
+    "analytics",
+    "benefits administration",
+    "data reporting",
+    "client support",
+    "process improvement",
+    "Excel/data tools",
+    "stakeholder communication",
+    "operational workflows",
+    "HR technology"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [
+    "Role title includes Analytics \u2014 Sudheer's experience building internal reporting and operational tooling at RNTBCI across Nissan/Renault/Mitsubishi aligns directly with analytics support for enterprise clients",
+    "Client Operations focus suggests cross-functional stakeholder work \u2014 Sudheer coordinated across engineering, design, and business teams at RNTBCI for internal tools used daily by operations staff",
+    "Benefits admin platforms are enterprise SaaS products \u2014 Sudheer's 4 years in enterprise Java systems gives him understanding of backend data flows and system integrations relevant to troubleshooting client-facing issues",
+    "MBA program context (Carlson STEM MBA) positions Sudheer as a business-technical bridge \u2014 Client Operations & Analytics intern roles typically require translating data insights into client-facing recommendations, matching his current trajectory toward Technical PM/AI Product"
+  ],
+  "contact_targets": [
+    {
+      "title": "Client Operations Manager or Director",
+      "function": "Client Success / Operations",
+      "reason": "Directly manages or oversees the team this intern would join \u2014 best person to speak to day-to-day work, team priorities, and what makes a strong candidate"
+    },
+    {
+      "title": "Senior Analyst or Client Success Analyst",
+      "function": "Analytics / Client Operations",
+      "reason": "Senior IC doing work similar to what the intern would do \u2014 can speak candidly about the analytics tools, client workflows, and growth path"
+    },
+    {
+      "title": "MBA Recruiter or University Programs Recruiter",
+      "function": "Talent Acquisition",
+      "reason": "If no operations contacts are reachable, a recruiter focused on MBA or intern programs can route the application and flag Sudheer's profile"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

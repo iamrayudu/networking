@@ -1,0 +1,45 @@
+{
+  "company_summary": "PTC ServiceMax is a field service management (FSM) platform\u2014now part of PTC\u2014that helps asset-intensive industries (medical devices, industrial equipment, energy) manage work orders, technician scheduling, asset lifecycle, and service contracts. PTC acquired ServiceMax in 2023 to strengthen its industrial IoT and service lifecycle management portfolio, signaling a push toward connected asset intelligence and integration with PTC's Windchill and ThingWorx platforms. The company's trajectory is toward AI-assisted field service, predictive maintenance, and deeper ERP/CRM integration for enterprise customers.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "product management internship",
+    "field service management",
+    "enterprise SaaS",
+    "roadmap planning",
+    "user story writing",
+    "cross-functional collaboration",
+    "customer requirements analysis",
+    "go-to-market support",
+    "agile/scrum methodology",
+    "competitive analysis",
+    "stakeholder communication"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/servicemax",
+  "fit_indicators": [
+    "ServiceMax is an enterprise SaaS platform serving large OEMs and industrial orgs \u2014 Sudheer's 4 years building enterprise Java systems at RNTBCI for Nissan/Renault/Mitsubishi operations is direct domain alignment with asset-intensive enterprise customers",
+    "ServiceMax integrates with ERP and CRM systems across complex org structures \u2014 Sudheer built internal tooling (billing, attendance, design approval) used daily across a multi-brand enterprise org, directly paralleling the integration and internal adoption challenges ServiceMax PMs face",
+    "PTC's push toward AI-assisted field service and predictive maintenance aligns with Sudheer's current work building multi-agent AI systems with Claude API, giving him credible perspective on AI product integration",
+    "Role likely involves translating customer and engineering requirements into product specs \u2014 Sudheer's position bridging legacy modernisation and microservices at RNTBCI maps directly to understanding technical constraints while communicating product value",
+    "Carlson STEM MBA signals structured PM methodology training \u2014 internship roles at product-led SaaS companies typically value candidates who combine technical depth with business framing, which is Sudheer's exact profile"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Group PM \u2014 Field Service Platform",
+      "function": "Product Management",
+      "reason": "Most likely direct manager or peer to the intern; best person to speak to day-to-day scope, team priorities, and whether Sudheer's enterprise and AI background fills a gap"
+    },
+    {
+      "title": "Associate PM or PM II who joined recently",
+      "function": "Product Management",
+      "reason": "Recent hire in a similar role can speak authentically to the intern-to-full-time pipeline, team culture, and what skills actually matter on the job"
+    },
+    {
+      "title": "Technical Program Manager or Solutions Engineer working with enterprise accounts",
+      "function": "Technical / Customer Success",
+      "reason": "Closest technical collaborator to the PM function; can validate how Sudheer's enterprise Java and systems background is perceived and used within the product org"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

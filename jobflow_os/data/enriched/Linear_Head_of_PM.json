@@ -1,0 +1,58 @@
+{
+  "company_summary": "Linear is a purpose-built product development system used by 25,000+ companies including OpenAI, Coinbase, and Ramp. Founded in 2019, they are positioning themselves at the intersection of AI and software development workflows \u2014 enabling teams and AI agents to plan, build, and ship products together. Their current product direction is deeply focused on AI-native workflows: autonomous agents that draft PRDs, push PRs, triage issues, and automate product operations.",
+  "team_info": "Leadership includes Nan Yu (Head of Product), Tom Moor (Head of Engineering), Jori Lallo (Co-founder, CPO), and Tuomas Artman (Co-founder, CTO). Team is distributed across North America and Europe. Total team appears to be roughly 100+ people based on the About page roster. They are actively hiring.",
+  "tech_stack": [
+    "iOS",
+    "Claude Opus 4.5",
+    "GraphQL (inferred from 'Gra' fragment)",
+    "Codex",
+    "Slack integration"
+  ],
+  "role_signals": [
+    "product development",
+    "AI workflows",
+    "agent tasks",
+    "PRD drafting",
+    "issue triage",
+    "backlog management",
+    "performance optimization",
+    "intake automation",
+    "customer feedback routing",
+    "multi-agent systems",
+    "planning and building products"
+  ],
+  "culture_signals": [
+    "relentless focus",
+    "fast execution",
+    "deep care for software craftsmanship",
+    "makers at heart",
+    "designed for speed",
+    "reduces noise and restores momentum"
+  ],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [
+    "Linear is building AI agent workflows where agents take tasks from Slack, triage issues, and push code \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly matching this AI-native product direction",
+    "Linear uses Claude Opus 4.5 as part of their product stack \u2014 Sudheer builds production systems using the Claude API, giving him direct hands-on familiarity with the exact AI tooling Linear ships with",
+    "Linear's product automates internal product operations (routing, labeling, prioritization) \u2014 Sudheer built internal tooling at RNTBCI (billing, attendance, design approval systems) used daily across Nissan/Renault/Mitsubishi orgs, showing proven experience in high-adoption internal systems",
+    "Linear emphasizes speed, focus, and shipping with velocity \u2014 Sudheer's 4 years in enterprise Java at RNTBCI involved legacy modernisation and microservices, signaling experience with complex systems that require both architectural discipline and delivery momentum",
+    "Linear's Head of Product (Nan Yu) and small senior product team suggest TPM or AI Product roles require strong technical depth alongside product thinking \u2014 Sudheer's full-stack Java background plus MBA plus active AI system building aligns with this hybrid technical-product profile"
+  ],
+  "contact_targets": [
+    {
+      "title": "Head of Product",
+      "function": "Product leadership",
+      "reason": "Nan Yu leads product at Linear \u2014 direct manager or close collaborator for any TPM or AI Product role; most relevant person to connect with about product direction and open roles"
+    },
+    {
+      "title": "Head of Engineering",
+      "function": "Engineering leadership",
+      "reason": "Tom Moor leads engineering \u2014 relevant if targeting Engineering Manager or technical AI product roles; can speak to technical culture and team needs"
+    },
+    {
+      "title": "Co-founder / CPO",
+      "function": "Product vision and strategy",
+      "reason": "Jori Lallo is Co-founder and CPO driving the AI-era product thesis \u2014 reaching out with a specific angle on agent workflows or AI product thinking could stand out given Linear's small, maker-focused team"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

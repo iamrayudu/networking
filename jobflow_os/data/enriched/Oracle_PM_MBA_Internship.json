@@ -1,0 +1,37 @@
+{
+  "company_summary": "Oracle is a global enterprise IT company founded in 1977, best known for Oracle Database (the first commercial SQL RDBMS), cloud ERP, Java, and Oracle Cloud Infrastructure (OCI). The company has aggressively expanded through acquisitions including Sun Microsystems, Cerner, and NetSuite. As of 2023, Oracle is investing heavily in generative AI use cases within its Fusion Cloud services, signaling a strategic shift toward AI-powered enterprise software.",
+  "team_info": "not found",
+  "tech_stack": [
+    "Oracle Database",
+    "Java",
+    "SQL",
+    "Oracle Cloud Infrastructure (OCI)",
+    "Solaris",
+    "Oracle Linux",
+    "MySQL",
+    "Oracle Fusion Cloud",
+    "ERP"
+  ],
+  "role_signals": [],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [],
+  "contact_targets": [
+    {
+      "title": "Product Manager, Oracle Cloud / Fusion Cloud",
+      "function": "Product Management",
+      "reason": "Closest functional match to Sudheer's target role; would have direct insight into open headcount, team priorities, and what strong PM candidates look like internally"
+    },
+    {
+      "title": "Engineering Manager, Java Platform or OCI",
+      "function": "Engineering Leadership",
+      "reason": "Sudheer has 4 years of Java/enterprise systems experience at RNTBCI; an EM in Java or OCI could speak to technical fit and advocate for PM or EM roles on their team"
+    },
+    {
+      "title": "Technical Recruiter, Oracle Cloud or AI Products",
+      "function": "Talent Acquisition",
+      "reason": "Fallback if no direct team contacts are reachable; Oracle is large enough that recruiters are segmented by product line, so targeting cloud/AI-specific recruiters is more effective than generic outreach"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

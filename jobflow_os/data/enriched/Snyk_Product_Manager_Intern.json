@@ -1,0 +1,27 @@
+{
+  "company_summary": "Snyk is a developer-first security platform that helps teams find and fix vulnerabilities in open source dependencies, containers, infrastructure as code, and proprietary code. The company has grown rapidly and is positioned as a leader in the DevSecOps space, with strong enterprise adoption and deep integrations into developer workflows. Snyk's trajectory is toward embedding AI-assisted security tooling directly into CI/CD pipelines and IDE environments.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/snyk",
+  "fit_indicators": [],
+  "contact_targets": [
+    {
+      "title": "Product Manager, Platform or Developer Experience",
+      "function": "Product",
+      "reason": "Direct peer or manager to the intern role \u2014 best positioned to advocate for Sudheer and assess fit on day-to-day product work"
+    },
+    {
+      "title": "Senior Product Manager, Security or AI",
+      "function": "Product",
+      "reason": "Senior IC doing adjacent work \u2014 can speak to what the team values and surface referral or informational interview opportunity"
+    },
+    {
+      "title": "Technical Recruiter or University Recruiting",
+      "function": "Talent",
+      "reason": "Fallback if no PM contacts respond \u2014 useful for confirming intern cycle timelines and application status"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}

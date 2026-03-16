@@ -1,0 +1,46 @@
+{
+  "company_summary": "Oracle is a global enterprise technology company providing cloud infrastructure, databases, and applications to businesses worldwide. The company is in an aggressive cloud growth phase, competing with AWS and Azure through Oracle Cloud Infrastructure (OCI) and SaaS applications like Fusion ERP and NetSuite. Oracle's Services division supports large enterprise customers through consulting, support, and managed cloud services.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "strategy development",
+    "MBA internship",
+    "services business",
+    "go-to-market strategy",
+    "market analysis",
+    "business case development",
+    "cross-functional collaboration",
+    "executive presentation",
+    "cloud services",
+    "consulting services strategy",
+    "revenue growth",
+    "operational efficiency"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/oracle",
+  "fit_indicators": [
+    "Services strategy roles require understanding of enterprise software delivery \u2014 Sudheer has 4 years building and modernising enterprise Java systems inside a large multinational (Renault-Nissan), giving him credibility in how large orgs consume and operate technology services",
+    "MBA internship emphasises structured problem-solving and executive communication \u2014 Sudheer's Carlson STEM MBA directly satisfies this credential requirement and signals business acumen layered on engineering depth",
+    "Oracle Services is investing in AI-augmented service delivery \u2014 Sudheer is actively building multi-agent AI systems with Claude API, making him credible on how AI can transform services operations and strategy",
+    "Strategy roles at Oracle Services involve cross-functional stakeholder work across product, sales, and delivery \u2014 Sudheer's RNTBCI experience required coordination across Nissan, Renault, and Mitsubishi business units, demonstrating enterprise stakeholder fluency",
+    "Services strategy intern roles typically involve competitive and market analysis for cloud services \u2014 Sudheer's technical background in microservices and cloud modernisation gives him an informed lens to evaluate Oracle's OCI and managed services positioning versus AWS and Azure"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Director or VP, Oracle Services Strategy",
+      "function": "Services Business Strategy",
+      "reason": "Direct hiring manager or strategy leader for this internship track \u2014 highest relevance for understanding what the role actually needs and for making a warm impression pre-application"
+    },
+    {
+      "title": "Previous Services Strategy MBA Intern or Associate",
+      "function": "Strategy or Business Development",
+      "reason": "Can provide insider view on project scope, team dynamics, and what differentiates successful candidates \u2014 also a natural warm outreach peer given shared MBA background"
+    },
+    {
+      "title": "University Recruiter, Oracle MBA Programs",
+      "function": "Talent Acquisition",
+      "reason": "Fallback if no strategy contacts are reachable \u2014 can confirm application timeline and hiring process for MBA intern cohort"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

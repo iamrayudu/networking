@@ -1,0 +1,47 @@
+{
+  "company_summary": "Motorola Solutions is a global leader in public safety technology \u2014 building mission-critical communications infrastructure, software, and services for police, fire, EMS, and government agencies. Their product portfolio spans land mobile radio (LMR), video security, and command center software including CAD (computer-aided dispatch), records management, and dispatch console systems. They are actively investing in AI-driven public safety workflows and cloud migration of legacy dispatch and operations platforms.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "dispatch products",
+    "operations",
+    "product management",
+    "public safety software",
+    "computer-aided dispatch (CAD)",
+    "command center solutions",
+    "cross-functional collaboration",
+    "roadmap planning",
+    "go-to-market",
+    "customer requirements",
+    "mission-critical systems",
+    "stakeholder alignment",
+    "agile product development"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/motorola-solutions",
+  "fit_indicators": [
+    "Dispatch and command center products are deeply enterprise-grade, high-reliability systems \u2014 Sudheer's 4 years building enterprise Java systems at RNTBCI for Nissan/Renault/Mitsubishi operational infrastructure maps directly to this complexity and stakeholder scale",
+    "Motorola Solutions is migrating legacy dispatch platforms to modern architectures \u2014 Sudheer's explicit RNTBCI experience in legacy modernisation and microservices is a direct match for this transition challenge",
+    "PM role requires internal tooling and workflow automation for dispatch operations \u2014 Sudheer built billing, attendance, and design approval systems used daily across a multi-brand automotive org, demonstrating operational tooling ownership",
+    "Role requires managing cross-functional delivery across engineering, ops, and customers \u2014 Sudheer's Carlson STEM MBA combined with 4 years of technical delivery positions him as a bridge between product and engineering teams",
+    "Motorola Solutions is integrating AI into public safety workflows \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly relevant to AI product integration initiatives in dispatch and operations"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Group PM, Command Center Software",
+      "function": "Product Management",
+      "reason": "Directly manages or peers with the Dispatch Products PM role \u2014 best person to understand team needs, validate fit, and provide a referral or warm introduction"
+    },
+    {
+      "title": "Director of Product Management, Public Safety Software",
+      "function": "Product Leadership",
+      "reason": "Likely the hiring manager or skip-level for this role \u2014 reaching out with a point of view on AI in dispatch or legacy modernisation would be a high-signal approach"
+    },
+    {
+      "title": "Engineering Manager or Principal Engineer, Dispatch/CAD Platform",
+      "function": "Engineering",
+      "reason": "Senior IC closest to the technical product work \u2014 can speak to what the PM role actually owns day-to-day and may influence hiring decisions"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

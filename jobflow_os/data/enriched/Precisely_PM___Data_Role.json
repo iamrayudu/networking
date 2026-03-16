@@ -1,0 +1,58 @@
+{
+  "company_summary": "Precisely is a 50+ year enterprise data integrity company serving 12,000 companies across 100 countries, focused on delivering accurate, consistent, and contextual data for confident business decisions. Their current strategic direction is 'Agentic-Ready Data' \u2014 positioning their Data Integrity Suite as the trusted data foundation that enterprise AI and agentic workflows run on. They are actively partnering with Matillion, Snowflake, Databricks, and AWS to accelerate data modernization and AI readiness.",
+  "team_info": "not found",
+  "tech_stack": [
+    "IBM Z & Power Systems",
+    "SAP",
+    "Snowflake",
+    "Databricks",
+    "AWS",
+    "Microsoft Azure",
+    "Confluent",
+    "Google Cloud",
+    "ServiceNow",
+    "Splunk"
+  ],
+  "role_signals": [
+    "data integrity",
+    "agentic AI readiness",
+    "enterprise AI",
+    "data modernization",
+    "master data management",
+    "SAP process automation",
+    "location intelligence",
+    "data self-service",
+    "process automation",
+    "customer communications",
+    "IBM systems optimization",
+    "AI product integration",
+    "data strategy consulting"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "not found",
+  "fit_indicators": [
+    "Precisely's core strategic push is 'Agentic-Ready Data' for enterprise AI workflows \u2014 Sudheer is actively building multi-agent AI systems with Claude API, directly aligned with their current product direction",
+    "Precisely emphasizes legacy modernization and connecting 'today's infrastructure with tomorrow's technology' \u2014 Sudheer has 4 years of legacy modernization experience at RNTBCI migrating enterprise Java systems to microservices",
+    "Precisely partners heavily with SAP and IBM enterprise platforms \u2014 Sudheer's enterprise Java background at RNTBCI involved large-scale internal tooling across Nissan/Renault/Mitsubishi operations, the same industrial enterprise context",
+    "Role signals include process automation and data self-service tooling \u2014 Sudheer built billing, attendance, and design approval internal tools used daily across a multi-brand automotive enterprise org",
+    "Precisely's 2026 report theme is 'AI confidence is high but AI readiness tells a different story' \u2014 Sudheer's MBA focus on AI product and his hands-on multi-agent systems work positions him to bridge the gap between AI ambition and enterprise data readiness"
+  ],
+  "contact_targets": [
+    {
+      "title": "Senior Product Manager or Director of Product \u2014 AI/Data Integrity Suite",
+      "function": "Product",
+      "reason": "Directly manages or works alongside the role Sudheer is targeting; best person to speak to about AI product direction and where a Technical PM or AI Product hire fits"
+    },
+    {
+      "title": "Engineering Manager or Principal Engineer \u2014 Data Platform or Agentic AI",
+      "function": "Engineering",
+      "reason": "Senior IC doing the technical work most aligned with Sudheer's background in enterprise Java systems and multi-agent AI; can validate fit and provide internal referral signal"
+    },
+    {
+      "title": "Technical Recruiter or Talent Partner \u2014 Product and Engineering",
+      "function": "Recruiting",
+      "reason": "Fallback if no product/engineering contacts are reachable; can route Sudheer to the right hiring manager for AI product or Technical PM openings"
+    }
+  ],
+  "enrichment_confidence": "MEDIUM"
+}

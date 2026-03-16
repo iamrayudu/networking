@@ -1,0 +1,44 @@
+{
+  "company_summary": "Ricoh USA is the American subsidiary of Ricoh Company Ltd, a Japanese multinational specialising in imaging, printing, document management, and workplace technology solutions. The company has been actively shifting from hardware-centric products toward digital services, cloud-based document workflows, and smart workplace platforms. Ricoh's current strategic direction emphasises digital transformation services, managed print services, and IT solutions for enterprise customers.",
+  "team_info": "not found",
+  "tech_stack": [],
+  "role_signals": [
+    "product ownership",
+    "software product management",
+    "agile/scrum",
+    "sprint planning",
+    "backlog grooming",
+    "stakeholder communication",
+    "requirements gathering",
+    "cross-functional collaboration",
+    "user stories",
+    "product roadmap"
+  ],
+  "culture_signals": [],
+  "linkedin_company_url": "https://www.linkedin.com/company/ricoh-usa",
+  "fit_indicators": [
+    "Intern PM role likely involves internal tooling or workflow software \u2014 Sudheer built billing, attendance, and design approval systems at RNTBCI used across Nissan/Renault/Mitsubishi daily operations, demonstrating direct internal product ownership experience",
+    "Ricoh is driving digital transformation and document workflow automation \u2014 Sudheer's legacy modernisation and microservices work at RNTBCI directly mirrors enterprise-grade software transition projects",
+    "Product Owner roles require translating technical systems into stakeholder-facing requirements \u2014 Sudheer's cross-functional work bridging engineering and operations across a three-brand automotive org demonstrates this skill",
+    "MBA intern PM roles often involve AI or automation opportunity scoping \u2014 Sudheer is actively building multi-agent AI systems with Claude API, positioning him to identify and frame AI integration opportunities within Ricoh's product suite",
+    "OKTA auth implementation at RNTBCI signals enterprise SaaS and identity management familiarity, relevant to Ricoh's managed IT and cloud services product context"
+  ],
+  "contact_targets": [
+    {
+      "title": "Product Manager or Senior Product Manager",
+      "function": "Software / Digital Products",
+      "reason": "Direct hiring manager or day-to-day mentor for the intern PM role \u2014 best positioned to evaluate fit and advocate for Sudheer within the team"
+    },
+    {
+      "title": "Engineering Manager or Tech Lead",
+      "function": "Software Development / Platform Engineering",
+      "reason": "Works alongside PM interns on delivery; can speak to technical credibility and vouch for Sudheer's engineering background as a differentiator"
+    },
+    {
+      "title": "University Recruiter or Early Talent Program Manager",
+      "function": "Talent Acquisition",
+      "reason": "Manages MBA intern pipeline at Ricoh; relevant only if direct product team contacts are inaccessible"
+    }
+  ],
+  "enrichment_confidence": "LOW"
+}
